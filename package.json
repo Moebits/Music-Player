@@ -1,0 +1,113 @@
+{
+  "name": "music-player",
+  "version": "0.0.1",
+  "description": "A music player with real-time pitch shifting, reversing, and time stretching",
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "npm run clean && webpack && electron dist/main.js",
+    "clean": "del-cli ./dist",
+    "build": "npm run clean ./build && webpack && electron-builder -p never",
+    "release": "npm run clean ./build && webpack && electron-builder -p always"
+  },
+  "keywords": [
+    "music",
+    "audio",
+    "player",
+    "anime",
+    "cute"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tenpi/Music-Player"
+  },
+  "build": {
+    "appId": "com.tenpi.music-player",
+    "productName": "Music Player",
+    "icon": "./assets/icon.png",
+    "directories": {
+      "buildResources": "assets",
+      "output": "build"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "uninstallDisplayName": "Music Player",
+      "createDesktopShortcut": "always",
+      "installerSidebar": "./assets/installer.bmp",
+      "uninstallerSidebar": "./assets/installer.bmp"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "publish": {
+      "provider": "github",
+      "repo": "Music-Player",
+      "owner": "Tenpi",
+      "releaseType": "draft"
+    },
+    "fileAssociations": [
+      {
+        "ext": "mp3",
+        "description": "Audio files"
+      },
+      {
+        "ext": "wav",
+        "description": "Audio files"
+      },
+      {
+        "ext": "ogg",
+        "description": "Audio files"
+      },
+      {
+        "ext": "flac",
+        "description": "Audio files"
+      },
+      {
+        "ext": "aac",
+        "description": "Audio files"
+      }
+    ]
+  },
+  "author": "Tenpi",
+  "license": "MIT",
+  "devDependencies": {
+    "@tenpi/tslint": "^1.1.0",
+    "@types/react": "^17.0.0",
+    "@types/react-dom": "^17.0.0",
+    "css-loader": "^5.0.1",
+    "del-cli": "^3.0.1",
+    "electron": "^11.2.1",
+    "electron-builder": "^22.9.1",
+    "file-loader": "^6.2.0",
+    "fork-ts-checker-webpack-plugin": "^6.1.0",
+    "html-loader": "^1.3.2",
+    "html-webpack-plugin": "^4.5.1",
+    "less": "^4.1.0",
+    "less-loader": "^7.3.0",
+    "mini-css-extract-plugin": "^1.3.5",
+    "node-loader": "^1.0.2",
+    "terser-webpack-plugin": "^5.1.1",
+    "ts-loader": "^8.0.14",
+    "typescript": "^4.1.3",
+    "webpack": "^5.18.0",
+    "webpack-cli": "^4.4.0"
+  },
+  "dependencies": {
+    "audiobuffer-to-wav": "^1.0.0",
+    "bootstrap": "^4.6.0",
+    "electron-updater": "^4.3.5",
+    "jsmediatags": "^3.9.7",
+    "rc-slider": "^9.7.1",
+    "react": "^17.0.1",
+    "react-bootstrap": "^1.4.3",
+    "react-dom": "^17.0.1",
+    "soundcloud.ts": "^0.4.1",
+    "tone": "^14.7.39",
+    "youtube.ts": "^0.2.2"
+  }
+}
