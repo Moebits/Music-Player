@@ -34,14 +34,14 @@ const RecentPlays: React.FunctionComponent = (props) => {
         let row2 = []
         for (let i = 0; i < 4; i++) {
             if (!recent[i]) {
-                row1.push(<img className="recent-img" src={square}/>)
+                row1.push(<img className="recent-square" src={square}/>)
             } else {
                 row1.push(<img className={`${checkYT(recent[i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(recent[i])} src={recent[i].songCover}/>)
             }
         }
         for (let i = 4; i < 8; i++) {
             if (!recent[i]) {
-                row2.push(<img className="recent-img" src={square}/>)
+                row2.push(<img className="recent-square" src={square}/>)
             } else {
                 row2.push(<img className={`${checkYT(recent[i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(recent[i])} src={recent[i].songCover}/>)
             }
