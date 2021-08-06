@@ -1,5 +1,5 @@
 import {ipcRenderer, remote} from "electron"
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useState, useReducer, useRef} from "react"
 import closeButtonHover from "../assets/icons/close-hover.png"
 import closeButton from "../assets/icons/close.png"
 import appIcon from "../assets/icons/logo.gif"
@@ -11,7 +11,13 @@ import starButtonHover from "../assets/icons/star-hover.png"
 import starButton from "../assets/icons/star.png"
 import updateButtonHover from "../assets/icons/updates-hover.png"
 import updateButton from "../assets/icons/updates.png"
+import playTiny from "../assets/icons/playTiny.png"
+import playTinyHover from "../assets/icons/playTiny-hover.png"
+import pauseTiny from "../assets/icons/pauseTiny.png"
+import pauseTinyHover from "../assets/icons/pauseTiny-hover.png"
 import pack from "../package.json"
+import path from "path"
+import functions from "../structures/functions"
 import "../styles/titlebar.less"
 
 const TitleBar: React.FunctionComponent = (props) => {
@@ -20,10 +26,22 @@ const TitleBar: React.FunctionComponent = (props) => {
     const [hoverMax, setHoverMax] = useState(false)
     const [hoverReload, setHoverReload] = useState(false)
     const [hoverStar, setHoverStar] = useState(false)
-    const [hoverSettings, setHoverSettings] = useState(false)
+    const [hoverPlay, setHoverPlay] = useState(false)
+    const [ignored, forceUpdate] = useReducer(x => x + 1, 0)
+    const playRef = useRef(null) as any
 
     useEffect(() => {
+        const playStateChanged = () => {
+            setTimeout(() => {
+                forceUpdate()
+            }, 200)
+        }
+        forceUpdate()
         ipcRenderer.invoke("check-for-updates", true)
+        ipcRenderer.on("play-state-changed", playStateChanged)
+        return () => {
+            ipcRenderer.removeListener("play-state-changed", playStateChanged)
+        }
     }, [])
 
     const minimize = () => {
@@ -48,6 +66,20 @@ const TitleBar: React.FunctionComponent = (props) => {
         ipcRenderer.invoke("check-for-updates", false)
     }
 
+    const play = () => {
+        ipcRenderer.invoke("change-play-state")
+    }
+
+    const getPlayState = () => {
+        const button = document.querySelector(".player-button.play-button") as HTMLImageElement
+        const name = path.basename(button?.src ?? "")
+        if (name.includes("play")) {
+            return "paused"
+        } else {
+            return "started"
+        }
+    }
+
     return (
         <section className="title-bar">
                 <div className="title-bar-drag-area">
@@ -56,6 +88,7 @@ const TitleBar: React.FunctionComponent = (props) => {
                         <p><span className="title">Music Player v{pack.version}</span></p>
                     </div>
                     <div className="title-bar-buttons">
+                        <img ref={playRef} src={hoverPlay ? (getPlayState() === "started" ? pauseTinyHover : playTinyHover) : (getPlayState() === "started" ? pauseTiny : playTiny)} height="20" width="20" className="title-bar-button play-title-button" onClick={play} onMouseEnter={() => setHoverPlay(true)} onMouseLeave={() => setHoverPlay(false)}/>
                         <img src={hoverStar ? starButtonHover : starButton} height="20" width="20" className="title-bar-button star-button" onClick={star} onMouseEnter={() => setHoverStar(true)} onMouseLeave={() => setHoverStar(false)}/>
                         <img src={hoverReload ? updateButtonHover : updateButton} height="20" width="20" className="title-bar-button update-button" onClick={update} onMouseEnter={() => setHoverReload(true)} onMouseLeave={() => setHoverReload(false)}/>
                         <img src={hoverMin ? minimizeButtonHover : minimizeButton} height="20" width="20" className="title-bar-button" onClick={minimize} onMouseEnter={() => setHoverMin(true)} onMouseLeave={() => setHoverMin(false)}/>

@@ -45,11 +45,9 @@ import "../styles/audioplayer.less"
 const AudioPlayer: React.FunctionComponent = (props) => {
     const progressBar = useRef(null) as any
     const volumeBar = useRef(null) as any
-    const loopButton = useRef(null) as React.RefObject<HTMLButtonElement>
     const speedBar = useRef(null) as React.RefObject<HTMLInputElement>
     const speedCheckbox = useRef(null) as React.RefObject<HTMLInputElement>
     const pitchBar = useRef(null) as React.RefObject<HTMLInputElement>
-    const uploadFile = useRef(null) as React.RefObject<HTMLInputElement>
     const secondsProgress = useRef(null) as React.RefObject<HTMLSpanElement>
     const secondsTotal = useRef(null) as React.RefObject<HTMLSpanElement>
     const abSlider = useRef(null) as React.RefObject<any>
@@ -57,7 +55,6 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const playButton = useRef(null) as React.RefObject<HTMLImageElement>
     const previousButton = useRef(null) as React.RefObject<HTMLImageElement>
     const nextButton = useRef(null) as React.RefObject<HTMLImageElement>
-    const volumePopup = useRef(null) as React.RefObject<HTMLDivElement>
     const volumeRef = useRef(null) as React.RefObject<HTMLImageElement>
     const speedPopup = useRef(null) as React.RefObject<HTMLDivElement>
     const pitchPopup = useRef(null) as React.RefObject<HTMLDivElement>
@@ -68,11 +65,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const loopImg = useRef(null) as React.RefObject<HTMLImageElement>
     const abLoopImg = useRef(null) as React.RefObject<HTMLImageElement>
     const songCover = useRef(null) as React.RefObject<HTMLImageElement>
-    const metadataText = useRef(null) as React.RefObject<HTMLDivElement>
     const songTitle = useRef(null) as React.RefObject<HTMLHeadingElement>
-    const reverseMeta = useRef(null) as React.RefObject<HTMLDivElement>
-    const loopMeta = useRef(null) as React.RefObject<HTMLDivElement>
-    const abLoopMeta = useRef(null) as React.RefObject<HTMLDivElement>
 
     useEffect(() => {
         const getOpenedFile = async () => {
@@ -81,13 +74,25 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
         getOpenedFile()
         const openFile = (event: any, file: string) => {
-            console.log(file)
             if (file) upload(file)
         }
+        const invokePlay = (event: any, info: any) => {
+            if (info.songUrl) {
+                submit(info.songUrl, info.skip)
+            } else {
+                upload(info.song, info.skip)
+            }
+        }
+        const changePlayState = () => {
+            play()
+        }
         ipcRenderer.on("open-file", openFile)
-        ipcRenderer.on("debug", console.log)
+        ipcRenderer.on("invoke-play", invokePlay)
+        ipcRenderer.on("change-play-state", changePlayState)
         return () => {
             ipcRenderer.removeListener("open-file", openFile)
+            ipcRenderer.removeListener("invoke-play", invokePlay)
+            ipcRenderer.removeListener("change-play-state", changePlayState)
         }
     }, [])
 
@@ -107,6 +112,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         song: "",
         songName: "No title",
         songCover: placeholder,
+        songUrl: "",
         editCode: "",
         download: "",
         effects: [] as {type: string, node: Tone.ToneAudioNode}[],
@@ -173,12 +179,16 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         } else {
             Tone.Transport.start()
         }
+        functions.flipPlayTitle()
+        ipcRenderer.invoke("play-state-changed")
     }
 
     const stop = () => {
         if (!checkBuffer()) return
         if (Tone.Transport.state === "stopped") return
         Tone.Transport.stop()
+        functions.flipPlayTitle()
+        ipcRenderer.invoke("play-state-changed")
     }
 
     const mute = () => {
@@ -540,7 +550,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         songCover.current!.src = state.songCover
     }
 
-    const upload = async (file?: string) => {
+    const upload = async (file?: string, skip?: boolean) => {
         if (!file) file = await ipcRenderer.invoke("select-file")
         if (!file) return
         if (!file.startsWith("file:///")) file = `file:///${file}`
@@ -560,11 +570,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
         state.songName = path.basename(file).replace(".mp3", "").replace(".wav", "").replace(".flac", "").replace(".ogg", "")
         state.song = file
+        state.songUrl = ""
         await source.buffer.load(state.song)
         await player.load(state.song)
         await Tone.loaded()
         duration()
         updateMetadata()
+        updateRecentFiles(skip)
         if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
             stop()
         }
@@ -684,9 +696,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         document.body.removeChild(a)
     }
 
-    const submit = async (event?: React.MouseEvent<HTMLButtonElement>) => {
-        event?.preventDefault()
-        const value = searchBox.current?.value
+    const submit = async (value?: string, skip?: boolean) => {
+        if (!value) value = searchBox.current?.value
         if (!value) return
         searchBox.current!.value = ""
         const songBuffer = await ipcRenderer.invoke("get-song", value)
@@ -698,11 +709,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             state.songName = songName
             state.song = window.URL.createObjectURL(blob)
             state.songCover = artwork
+            state.songUrl = value
             await source.buffer.load(state.song)
             await player.load(state.song)
             await Tone.loaded()
             duration()
             updateMetadata()
+            updateRecentFiles(skip)
             if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
                 stop()
             }
@@ -712,12 +725,37 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
     }
 
-    const previous = () => {
-
+    const updateRecentFiles = (skip?: boolean) => {
+        const current = state.grainPlayer ? source : player
+        ipcRenderer.invoke("update-recent", {
+            songName: state.songName, 
+            song: state.song,
+            songCover: state.songCover,
+            songUrl: state.songUrl,
+            duration: current.buffer.duration,
+            skip
+        })
     }
 
-    const next = () => {
+    const previous = () => {
+        const current = state.grainPlayer ? source : player
+        ipcRenderer.invoke("get-previous", {
+            songName: state.songName, 
+            song: state.song,
+            songCover: state.songCover,
+            songUrl: state.songUrl,
+            duration: current.buffer.duration
+        })
+    }
 
+    const next = () => {const current = state.grainPlayer ? source : player
+        ipcRenderer.invoke("get-next", {
+            songName: state.songName, 
+            song: state.song,
+            songCover: state.songCover,
+            songUrl: state.songUrl,
+            duration: current.buffer.duration
+        })
     }
 
     /* JS Media Queries */
@@ -854,7 +892,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 <button onClick={() => download()} className="download-button"><span>Download</span></button>
                 <form className="search-bar">
                     <input type="text" ref={searchBox} placeholder="Youtube or Soundcloud link..." className="search-box" spellCheck="false"/>
-                    <button onClick={(event) => submit(event)} className="search-button"><img src={searchIcon} width="30" height="30" className="search-icon"/></button>
+                    <button onClick={() => submit()} className="search-button"><img src={searchIcon} width="30" height="30" className="search-icon"/></button>
                 </form>
             </section>
 
@@ -866,7 +904,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 <img ref={songCover} className="player-img" src={state.songCover}/>
                 <div className="player-container">
                     <div className="player-row">
-                        <h2 ref={songTitle} className="player-text">{state.songName}</h2>
+                        <div className="player-text-container">
+                            <h2 ref={songTitle} className="player-text">{state.songName}</h2>
+                        </div>
                         <div className="play-button-container"> 
                             <img className="player-button" src={previousIcon} ref={previousButton} onClick={() => previous()} width="25" height="25" onMouseEnter={() => toggleHover("previous", true)} onMouseLeave={() => toggleHover("previous")}/>
                             <img className="player-button play-button" src={playIcon} ref={playButton} onClick={() => play()} width="45" height="45" onMouseEnter={() => toggleHover("play", true)} onMouseLeave={() => toggleHover("play")}/>

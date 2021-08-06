@@ -1,5 +1,5 @@
 import "bootstrap/dist/css/bootstrap.min.css"
-import React, {useEffect, useState} from "react"
+import React from "react"
 import ReactDom from "react-dom"
 import TitleBar from "./components/TitleBar"
 import AudioPlayer from "./components/AudioPlayer"

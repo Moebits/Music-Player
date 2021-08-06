@@ -1,25 +1,50 @@
-import React, {useEffect, useState} from "react"
-import stock1 from "../assets/images/stock1.png"
-import stock2 from "../assets/images/stock2.png"
-import stock3 from "../assets/images/stock3.png"
-import stock4 from "../assets/images/stock4.png"
-import stock5 from "../assets/images/stock5.png"
-import stock6 from "../assets/images/stock6.png"
-import stock7 from "../assets/images/stock7.png"
-import stock8 from "../assets/images/stock8.png"
+import React, {useEffect, useReducer} from "react"
+import {ipcRenderer} from "electron"
+import square from "../assets/images/square.png"
 import "../styles/recentplays.less"
 
-const images = [stock8, stock7, stock6, stock5, stock4, stock3, stock2, stock1]
+let recent = [] as any[]
 
 const RecentPlays: React.FunctionComponent = (props) => {
+    const [ignored, forceUpdate] = useReducer(x => x + 1, 0)
+
+    useEffect(() => {
+        const updateRecentGUI = async () => {
+            recent = await ipcRenderer.invoke("get-recent")
+            forceUpdate()
+        }
+        updateRecentGUI()
+        ipcRenderer.on("update-recent-gui", updateRecentGUI)
+        return () => {
+            ipcRenderer.removeListener("update-recent-gui", updateRecentGUI)
+        }
+    }, [])
+
+    const invokePlay = (info: any) => {
+        ipcRenderer.invoke("invoke-play", info)
+    }
+
+    const checkYT = (info: any) => {
+        if (info.songUrl?.includes("youtube.com") || info.songUrl?.includes("youtu.be")) return true
+        return false
+    }
+
     const generateJSX = () => {
         let row1 = []
         let row2 = []
         for (let i = 0; i < 4; i++) {
-            row1.push(<img className="recent-img" src={images[i]}/>)
+            if (!recent[i]) {
+                row1.push(<img className="recent-img" src={square}/>)
+            } else {
+                row1.push(<img className={`${checkYT(recent[i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(recent[i])} src={recent[i].songCover}/>)
+            }
         }
         for (let i = 4; i < 8; i++) {
-            row2.push(<img className="recent-img" src={images[i]}/>)
+            if (!recent[i]) {
+                row2.push(<img className="recent-img" src={square}/>)
+            } else {
+                row2.push(<img className={`${checkYT(recent[i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(recent[i])} src={recent[i].songCover}/>)
+            }
         }
         return (
             <div className="recent-row-container">

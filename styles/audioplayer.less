@@ -74,84 +74,9 @@
     filter: invert(1);
 }
 
-.old-player {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 4rem;
-}
-
-.old-player-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 80%;
-}
-
-.old-player-buttons {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    margin-top: 2rem;
-    flex-wrap: wrap;
-}
-
-.old-player-text {
-    color: #ff228a;
-    font-family: "Skranji", sans-serif;
-    font-size: 2.5rem;
-    margin-left: 0.6rem;
-    span:hover {
-        color: #22b9ff;
-    }
-}
-
-.old-player-buttons img {
-    margin-left: 1rem;
-    width: 3.5rem;
-    height: 3.5rem;
-    &:first-child {
-        margin-left: 0;
-    }
-    &:hover {
-        cursor: pointer;
-        filter: hue-rotate(230deg) brightness(120%) ;
-    }
-}
-
-.volume-popup {
-    position: relative;
-}
-
-.volume-range {
-    height: 5rem;
-    position: absolute;
-    left: -1.3rem;
-    bottom: 1.5rem;
-    transform: rotate(270deg);
-    filter: hue-rotate(120deg) brightness(120%);
-}
-
-progress {
-    width: 100%;
-    height: 1rem;
-    border-radius: 0;
-    margin-top: 2rem;
-    margin-bottom: 2rem;
-    -webkit-appearance: none;
-    &::-webkit-progress-value {
-        background-color: #d342ff;
-    }
-    &::-webkit-progress-bar {
-        background-color: black;
-    }
-}
-
 .ab-slider.rc-slider {
     width: 100%;
     border-radius: 0.2;
-    // height: 0.7rem;
     align-items: center;
     margin-top: 0.6rem;
 }
@@ -198,7 +123,6 @@ progress {
 .progress-slider.rc-slider {
     width: 100%;
     border-radius: 0.2;
-    // height: 0.4rem;
     align-items: center;
 }
 
@@ -237,7 +161,6 @@ progress {
     margin-left: 7px;
     width: 100%;
     border-radius: 0.2;
-    // height: 0.3rem;
     align-items: center;
 }
 
@@ -361,14 +284,6 @@ progress {
 }
 
 @media screen and (max-width: 65rem) {
-    .player-top-buttons {
-        // justify-content: center;
-    }
-
-    .search-bar {
-        // margin-top: 2rem;
-    }
-
     .metadata {
         margin-bottom: 0;
     }
@@ -436,6 +351,12 @@ progress {
     color: black;
     font-family: "Skranji", sans-serif;
     font-size: 1.5rem;
+    user-select: text;
+    cursor: text;
+    span {
+        user-select: text;
+        cursor: text;
+    }
 }
 
 .player-text-small {
@@ -482,4 +403,10 @@ progress {
     width: 20%;
     align-items: center;
     margin-left: -15px;
+}
+
+.player-text-container {
+    display: flex;
+    flex-direction: row;
+    width: 35%;
 }

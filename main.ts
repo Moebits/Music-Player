@@ -1,5 +1,6 @@
 import {app, BrowserWindow, dialog, globalShortcut, ipcMain, shell} from "electron"
 import {autoUpdater} from "electron-updater"
+import Store from "electron-store"
 import path from "path"
 import process from "process"
 import "./dev-app-update.yml"
@@ -11,9 +12,50 @@ import functions from "./structures/functions"
 process.setMaxListeners(0)
 let window: Electron.BrowserWindow | null
 autoUpdater.autoDownload = false
+const store = new Store()
 
 const youtube = new Youtube()
 const soundcloud = new Soundcloud()
+
+let history: any[] = []
+let historyIndex = -1
+
+ipcMain.handle("get-previous", (event, info: any) => {
+  if (history[historyIndex - 1]) {
+    const info = {...history[historyIndex - 1], skip: true}
+    window?.webContents.send("invoke-play", info)
+    historyIndex--
+  }
+})
+
+ipcMain.handle("get-next", (event, info: any) => {
+  if (history[historyIndex + 1]) {
+    const info = {...history[historyIndex + 1], skip: true}
+    window?.webContents.send("invoke-play", info)
+    historyIndex++
+  }
+})
+
+ipcMain.handle("get-recent", () => {
+  return store.get("recent", [])
+})
+
+ipcMain.handle("update-recent", (event, info: any) => {
+  let recent = store.get("recent", []) as any[]
+  if (recent.length > 8) recent.pop()
+  const dupe = functions.findDupe(recent, info)
+  if (dupe !== -1) recent.splice(dupe, 1)
+  recent.unshift({...info, skip: false})
+  if (!info.skip) {
+    history.splice(++historyIndex, 999999999, info)
+  }
+  store.set("recent", recent)
+  window?.webContents.send("update-recent-gui")
+})
+
+ipcMain.handle("invoke-play", (event, info: any) => {
+  window?.webContents.send("invoke-play", info)
+})
 
 ipcMain.handle("get-song", async (event, url: string) => {
   let stream = null as unknown as NodeJS.ReadableStream
@@ -43,6 +85,14 @@ ipcMain.handle("get-art", async (event, url: string) => {
     picture = await youtube.util.downloadThumbnail(url, undefined, true)
   }
   return picture
+})
+
+ipcMain.handle("change-play-state", () => {
+  window?.webContents.send("change-play-state")
+})
+
+ipcMain.handle("play-state-changed", () => {
+  window?.webContents.send("play-state-changed")
 })
 
 ipcMain.handle("select-file", async () => {
@@ -78,7 +128,6 @@ ipcMain.handle("get-opened-file", () => {
 })
 
 const openFile = (argv?: any) => {
-  window?.webContents.send("debug", argv ? argv : process.argv)
   let file = argv ? argv[2] : process.argv[1]
   window?.webContents.send("open-file", file)
 }

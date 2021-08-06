@@ -1,3 +1,8 @@
+
+import playTiny from "../assets/icons/playTiny.png"
+import playTinyHover from "../assets/icons/playTiny-hover.png"
+import pauseTiny from "../assets/icons/pauseTiny.png"
+import pauseTinyHover from "../assets/icons/pauseTiny-hover.png"
 import fs from "fs"
 import path from "path"
 
@@ -11,6 +16,15 @@ export default class Functions {
 
     public static arrayRemove = <T>(arr: T[], val: T) => {
         return arr.filter((item) => item !== val)
+    }
+
+    public static findDupe = (recent: any[], info: any) => {
+        for (let i = recent.length - 1; i >= 0; i--) {
+            if (recent[i].songUrl === info.songUrl
+                && recent[i].songName === info.songName
+                && recent[i].duration === info.duration) return i
+        }
+        return -1
     }
 
     public static timeout = async (ms: number) => {
@@ -103,4 +117,21 @@ export default class Functions {
         return blob as File
     }
 
+    public static flipPlayTitle = () => {
+        const button = document.querySelector(".title-bar-button.play-title-button") as HTMLImageElement
+        const name = path.basename(button?.src ?? "")
+        if (name.includes("hover")) {
+            if (name.includes("play")) {
+                button.src = pauseTinyHover
+            } else {
+                button.src = playTinyHover
+            }
+        } else {
+            if (name.includes("play")) {
+                button.src = pauseTiny
+            } else {
+                button.src = playTiny
+            }
+        }
+    }
 }
