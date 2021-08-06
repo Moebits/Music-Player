@@ -470,7 +470,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             }
         }
 
-        /* Precision on ctrl click */
+        /* Precision on shift click */
         window.onkeydown = (event: KeyboardEvent) => {
             if (event.shiftKey) {
                 event.preventDefault()
@@ -489,7 +489,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             }
         }
         window.onkeyup = (event: KeyboardEvent) => {
-            if (!event.ctrlKey) {
+            if (!event.shiftKey) {
                 if (Number(speedBar.current!.value) % 0.5 !== 0) speedBar.current!.value = String(functions.round(Number(speedBar.current!.value), 0.5))
                 if (Number(pitchBar.current!.value) % 12 !== 0) pitchBar.current!.value = String(functions.round(Number(pitchBar.current!.value), 12))
                 speedBar.current!.step = "0.5"
