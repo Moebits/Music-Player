@@ -892,7 +892,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 <button onClick={() => download()} className="download-button"><span>Download</span></button>
                 <form className="search-bar">
                     <input type="text" ref={searchBox} placeholder="Youtube or Soundcloud link..." className="search-box" spellCheck="false"/>
-                    <button onClick={() => submit()} className="search-button"><img src={searchIcon} width="30" height="30" className="search-icon"/></button>
+                    <button onClick={(event) => {event.preventDefault(); submit()}} className="search-button"><img src={searchIcon} width="30" height="30" className="search-icon"/></button>
                 </form>
             </section>
 
