@@ -20,6 +20,14 @@ const soundcloud = new Soundcloud()
 let history: any[] = []
 let historyIndex = -1
 
+ipcMain.handle("get-theme", () => {
+  return store.get("theme", "light")
+})
+
+ipcMain.handle("save-theme", (event, theme: string) => {
+  store.set("theme", theme)
+})
+
 ipcMain.handle("get-state", () => {
   return store.get("state", {})
 })

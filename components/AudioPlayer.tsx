@@ -394,7 +394,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const updateSliderPos = (value: number) => {
         progressBar.current.sliderRef.childNodes[3].ariaValueNow = `${value}`
         progressBar.current.sliderRef.childNodes[3].style = `left: ${value}%; right: auto; transform: translateX(-50%);`
-        progressBar.current.sliderRef.childNodes[1].style = `left: 0%; right: auto; width: ${value}%; background-color: ${state.reverse ? "black" : "#991fbe"};`
+        progressBar.current.sliderRef.childNodes[1].style = `left: 0%; right: auto; width: ${value}%; background-color: #991fbe;`
     }
 
     const updateVolumePos = (value: number) => {
@@ -500,7 +500,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
         applyAB(state.duration)
         if (!applyState) updateMetadata()
-        reverseStyle()
+        // reverseStyle()
         saveState()
     }
 

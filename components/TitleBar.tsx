@@ -19,9 +19,12 @@ import fxButton from "../assets/icons/fx.png"
 import fxButtonHover from "../assets/icons/fx-hover.png"
 import eqButton from "../assets/icons/eq.png"
 import eqButtonHover from "../assets/icons/eq-hover.png"
+import darkButton from "../assets/icons/dark.png"
+import darkButtonHover from "../assets/icons/dark-hover.png"
+import lightButton from "../assets/icons/light.png"
+import lightButtonHover from "../assets/icons/light-hover.png"
 import pack from "../package.json"
 import path from "path"
-import functions from "../structures/functions"
 import "../styles/titlebar.less"
 
 const TitleBar: React.FunctionComponent = (props) => {
@@ -33,6 +36,8 @@ const TitleBar: React.FunctionComponent = (props) => {
     const [hoverPlay, setHoverPlay] = useState(false)
     const [hoverFX, setHoverFX] = useState(false)
     const [hoverEQ, setHoverEQ] = useState(false)
+    const [hoverTheme, setHoverTheme] = useState(false)
+    const [theme, setTheme] = useState("light")
     const [ignored, forceUpdate] = useReducer(x => x + 1, 0)
     const playRef = useRef(null) as any
 
@@ -42,7 +47,12 @@ const TitleBar: React.FunctionComponent = (props) => {
                 forceUpdate()
             }, 200)
         }
+        const initTheme = async () => {
+            const saved = await ipcRenderer.invoke("get-theme")
+            changeTheme(saved)
+        }
         forceUpdate()
+        initTheme()
         ipcRenderer.invoke("check-for-updates", true)
         ipcRenderer.on("play-state-changed", playStateChanged)
         return () => {
@@ -94,6 +104,23 @@ const TitleBar: React.FunctionComponent = (props) => {
         ipcRenderer.invoke("audio-filters")
     }
 
+    const changeTheme = (value?: string) => {
+        let condition = value !== undefined ? value === "dark" : theme === "light"
+        if (condition) {
+            document.documentElement.style.setProperty("--title-color", "#090409")
+            document.documentElement.style.setProperty("--text-color", "#f53171")
+            document.documentElement.style.setProperty("--player-color", "#090409")
+            setTheme("dark")
+            ipcRenderer.invoke("save-theme", "dark")
+        } else {
+            document.documentElement.style.setProperty("--title-color", "#f53171")
+            document.documentElement.style.setProperty("--text-color", "black")
+            document.documentElement.style.setProperty("--player-color", "#ea224b")
+            setTheme("light")
+            ipcRenderer.invoke("save-theme", "light")
+        }
+    }
+
     return (
         <section className="title-bar">
                 <div className="title-bar-drag-area">
@@ -102,6 +129,7 @@ const TitleBar: React.FunctionComponent = (props) => {
                         <p><span className="title">Music Player v{pack.version}</span></p>
                     </div>
                     <div className="title-bar-buttons">
+                        <img src={hoverTheme ? (theme === "light" ? darkButtonHover : lightButtonHover) : (theme === "light" ? darkButton : lightButton)} height="20" width="20" className="title-bar-button theme-button" onClick={() => changeTheme()} onMouseEnter={() => setHoverTheme(true)} onMouseLeave={() => setHoverTheme(false)}/>
                         <img src={hoverEQ ? eqButtonHover : eqButton} height="20" width="20" className="title-bar-button eq-button" onClick={eq} onMouseEnter={() => setHoverEQ(true)} onMouseLeave={() => setHoverEQ(false)}/>
                         <img src={hoverFX ? fxButtonHover : fxButton} height="20" width="20" className="title-bar-button fx-button" onClick={fx} onMouseEnter={() => setHoverFX(true)} onMouseLeave={() => setHoverFX(false)}/>
                         <img ref={playRef} src={hoverPlay ? (getPlayState() === "started" ? pauseTinyHover : playTinyHover) : (getPlayState() === "started" ? pauseTiny : playTiny)} height="20" width="20" className="title-bar-button play-title-button" onClick={play} onMouseEnter={() => setHoverPlay(true)} onMouseLeave={() => setHoverPlay(false)}/>
