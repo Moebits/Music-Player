@@ -149,12 +149,52 @@ const AudioPlayer: React.FunctionComponent = (props) => {
 
     const initState = async () => {
         const saved = await ipcRenderer.invoke("get-state")
-        if (saved.speedBox !== undefined) speedBox(saved.speedBox)
-        if (saved.speed !== undefined) speed(saved.speed)
-        if (saved.pitch !== undefined) pitch(saved.pitch)
-        if (saved.reverse !== undefined) reverse(saved.reverse)
-        if (saved.loop !== undefined) loop(saved.loop)
+        if (saved.speedBox !== undefined) {
+            state.speedBox = saved.speedBox
+            speedCheckbox.current!.checked = state.speedBox
+        }
+        if (saved.speed !== undefined) {
+            state.speed = saved.speed
+            if (state.speed === 1) {
+                speedImg.current!.src = speedIcon
+            } else {
+                speedImg.current!.src = speedActiveIcon
+            }
+        }
+        if (saved.pitch !== undefined) {
+            state.pitch = saved.pitch
+            if (state.pitch === 0) {
+                pitchImg.current!.src = pitchIcon
+            } else {
+                pitchImg.current!.src = pitchActiveIcon
+            }
+        }
+        if (saved.reverse !== undefined) {
+            state.reverse = saved.reverse
+            if (state.reverse === false) {
+                reverseImg.current!.src = reverseIcon
+            } else {
+                reverseImg.current!.src = reverseActiveIcon
+            }
+        }
+        if (saved.loop !== undefined) {
+            state.loop = saved.loop
+            if (state.loop === false) {
+                loopImg.current!.src = loopIcon
+            } else {
+                loopImg.current!.src = loopActiveIcon
+            }
+        }
         updateBarPos()
+    }
+
+    const refreshState = () => {
+        const apply = {source, player}
+        speedBox(state.speedBox)
+        speed(state.speed)
+        pitch(state.pitch)
+        reverse(state.reverse, apply)
+        loop(state.loop)
     }
 
     const saveState = () => {
@@ -648,7 +688,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (Tone.Transport.state === "stopped") {
             play()
         }
-        loop(state.loop)
+        refreshState()
     }
 
     const applyAB = (duration: number) => {
@@ -804,7 +844,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (Tone.Transport.state === "stopped") {
                 play()
             }
-            loop(state.loop)
+            refreshState()
         }
     }
 
