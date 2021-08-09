@@ -58,7 +58,18 @@ export default class Functions {
         let adjusted = value - 100
         if (adjusted > 0) adjusted = 0
         return adjusted
-      }
+    }
+
+    public static logSlider2 = (position: number, min: number, max: number) => {
+        const minPos = 0
+        const maxPos = 100
+        const minValue = Math.log(min)
+        const maxValue = Math.log(max)
+        const scale = (maxValue - minValue) / (maxPos - minPos)
+        const value = Math.exp(minValue + scale * (position - minPos))
+        console.log(value)
+        return value
+    }
 
     public static formatSeconds = (duration: number) => {
         let seconds = Math.floor(duration % 60) as any

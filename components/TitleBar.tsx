@@ -15,6 +15,10 @@ import playTiny from "../assets/icons/playTiny.png"
 import playTinyHover from "../assets/icons/playTiny-hover.png"
 import pauseTiny from "../assets/icons/pauseTiny.png"
 import pauseTinyHover from "../assets/icons/pauseTiny-hover.png"
+import fxButton from "../assets/icons/fx.png"
+import fxButtonHover from "../assets/icons/fx-hover.png"
+import eqButton from "../assets/icons/eq.png"
+import eqButtonHover from "../assets/icons/eq-hover.png"
 import pack from "../package.json"
 import path from "path"
 import functions from "../structures/functions"
@@ -27,6 +31,8 @@ const TitleBar: React.FunctionComponent = (props) => {
     const [hoverReload, setHoverReload] = useState(false)
     const [hoverStar, setHoverStar] = useState(false)
     const [hoverPlay, setHoverPlay] = useState(false)
+    const [hoverFX, setHoverFX] = useState(false)
+    const [hoverEQ, setHoverEQ] = useState(false)
     const [ignored, forceUpdate] = useReducer(x => x + 1, 0)
     const playRef = useRef(null) as any
 
@@ -80,6 +86,14 @@ const TitleBar: React.FunctionComponent = (props) => {
         }
     }
 
+    const fx = () => {
+        ipcRenderer.invoke("audio-effects")
+    }
+
+    const eq = () => {
+        ipcRenderer.invoke("audio-filters")
+    }
+
     return (
         <section className="title-bar">
                 <div className="title-bar-drag-area">
@@ -88,6 +102,8 @@ const TitleBar: React.FunctionComponent = (props) => {
                         <p><span className="title">Music Player v{pack.version}</span></p>
                     </div>
                     <div className="title-bar-buttons">
+                        <img src={hoverEQ ? eqButtonHover : eqButton} height="20" width="20" className="title-bar-button eq-button" onClick={eq} onMouseEnter={() => setHoverEQ(true)} onMouseLeave={() => setHoverEQ(false)}/>
+                        <img src={hoverFX ? fxButtonHover : fxButton} height="20" width="20" className="title-bar-button fx-button" onClick={fx} onMouseEnter={() => setHoverFX(true)} onMouseLeave={() => setHoverFX(false)}/>
                         <img ref={playRef} src={hoverPlay ? (getPlayState() === "started" ? pauseTinyHover : playTinyHover) : (getPlayState() === "started" ? pauseTiny : playTiny)} height="20" width="20" className="title-bar-button play-title-button" onClick={play} onMouseEnter={() => setHoverPlay(true)} onMouseLeave={() => setHoverPlay(false)}/>
                         <img src={hoverStar ? starButtonHover : starButton} height="20" width="20" className="title-bar-button star-button" onClick={star} onMouseEnter={() => setHoverStar(true)} onMouseLeave={() => setHoverStar(false)}/>
                         <img src={hoverReload ? updateButtonHover : updateButton} height="20" width="20" className="title-bar-button update-button" onClick={update} onMouseEnter={() => setHoverReload(true)} onMouseLeave={() => setHoverReload(false)}/>

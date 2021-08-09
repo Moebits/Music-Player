@@ -4,6 +4,8 @@ import ReactDom from "react-dom"
 import TitleBar from "./components/TitleBar"
 import VersionDialog from "./components/VersionDialog"
 import AudioPlayer from "./components/AudioPlayer"
+import AudioEffects from "./components/AudioEffects"
+import AudioFilters from "./components/AudioFilters"
 import "./index.less"
 
 const App = () => {
@@ -11,6 +13,8 @@ const App = () => {
     <main className="app">
       <TitleBar/>
       <VersionDialog/>
+      <AudioEffects/>
+      <AudioFilters/>
       <AudioPlayer/>
     </main>
   )

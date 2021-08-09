@@ -1,4 +1,4 @@
-import {app, BrowserWindow, dialog, globalShortcut, ipcMain, shell} from "electron"
+import {app, BrowserWindow, dialog, globalShortcut, ipcMain} from "electron"
 import {autoUpdater} from "electron-updater"
 import Store from "electron-store"
 import path from "path"
@@ -19,6 +19,54 @@ const soundcloud = new Soundcloud()
 
 let history: any[] = []
 let historyIndex = -1
+
+ipcMain.handle("get-state", () => {
+  return store.get("state", {})
+})
+
+ipcMain.handle("save-state", (event, newState: any) => {
+  let state = store.get("state", {}) as object
+  state = {...state, ...newState}
+  store.set("state", state)
+})
+
+ipcMain.handle("reset-effects", () => {
+  window?.webContents.send("reset-effects")
+})
+
+ipcMain.handle("lowshelf", (event, state: any) => {
+  window?.webContents.send("lowshelf", state)
+})
+
+ipcMain.handle("highshelf", (event, state: any) => {
+  window?.webContents.send("highshelf", state)
+})
+
+ipcMain.handle("highpass", (event, state: any) => {
+  window?.webContents.send("highpass", state)
+})
+
+ipcMain.handle("lowpass", (event, state: any) => {
+  window?.webContents.send("lowpass", state)
+})
+
+ipcMain.handle("audio-filters", () => {
+  window?.webContents.send("close-all-dialogs", "filters")
+  window?.webContents.send("show-filters-dialog")
+})
+
+ipcMain.handle("delay", (event, state: any) => {
+  window?.webContents.send("delay", state)
+})
+
+ipcMain.handle("reverb", (event, state: any) => {
+  window?.webContents.send("reverb", state)
+})
+
+ipcMain.handle("audio-effects", () => {
+  window?.webContents.send("close-all-dialogs", "effects")
+  window?.webContents.send("show-effects-dialog")
+})
 
 ipcMain.handle("get-previous", (event, info: any) => {
   if (history[historyIndex - 1]) {
