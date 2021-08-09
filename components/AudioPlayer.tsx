@@ -195,6 +195,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         pitch(state.pitch)
         reverse(state.reverse, apply)
         loop(state.loop)
+        if (state.abloop) abloop([state.loopStart, state.loopEnd])
     }
 
     const saveState = () => {
@@ -611,13 +612,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (value < 0) value = 0
             if (value > state.duration - 2) value = state.duration - 2
             Tone.Transport.seconds = value
-            //secondsProgress.current!.innerText = functions.formatSeconds(state.duration - Tone.Transport.seconds)
         } else {
             let value = percent * state.duration
             if (value < 0) value = 0
             if (value > state.duration - 2) value = state.duration - 2
             Tone.Transport.seconds = value
-            //secondsProgress.current!.innerText = functions.formatSeconds(Tone.Transport.seconds)
         }
         if (Tone.Transport.state === "paused") play()
     }
@@ -806,7 +805,6 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
         const buffer = await render(start, duration)
         const wav = encodeWAV(buffer)
-        console.log(wav)
         const blob = new Blob([new DataView(wav)], {type: "audio/wav"})
         state.download = window.URL.createObjectURL(blob)
         const a = document.createElement("a")
