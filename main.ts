@@ -17,9 +17,6 @@ const store = new Store()
 const youtube = new Youtube()
 const soundcloud = new Soundcloud()
 
-let history: any[] = []
-let historyIndex = -1
-
 ipcMain.handle("get-theme", () => {
   return store.get("theme", "light")
 })
@@ -76,19 +73,33 @@ ipcMain.handle("audio-effects", () => {
   window?.webContents.send("show-effects-dialog")
 })
 
-ipcMain.handle("get-previous", (event, info: any) => {
-  if (history[historyIndex - 1]) {
-    const info = {...history[historyIndex - 1], skip: true}
-    window?.webContents.send("invoke-play", info)
-    historyIndex--
+ipcMain.handle("get-previous", async (event, info: any) => {
+  if (info.song.startsWith("file:///")) {
+    const song = info.song.replace("file:///", "")
+    const directory = path.dirname(song)
+    const files = await functions.getSortedFiles(directory)
+    const index = files.findIndex((f) => f === path.basename(song))
+    if (index !== -1) {
+      if (files[index - 1]) {
+        const info = {song: `file:///${directory}/${files[index - 1]}`}
+        window?.webContents.send("invoke-play", info)
+      }
+    }
   }
 })
 
-ipcMain.handle("get-next", (event, info: any) => {
-  if (history[historyIndex + 1]) {
-    const info = {...history[historyIndex + 1], skip: true}
-    window?.webContents.send("invoke-play", info)
-    historyIndex++
+ipcMain.handle("get-next", async (event, info: any) => {
+  if (info.song.startsWith("file:///")) {
+    const song = info.song.replace("file:///", "")
+    const directory = path.dirname(song)
+    const files = await functions.getSortedFiles(directory)
+    const index = files.findIndex((f) => f === path.basename(song))
+    if (index !== -1) {
+      if (files[index + 1]) {
+        const info = {song: `file:///${directory}/${files[index + 1]}`}
+        window?.webContents.send("invoke-play", info)
+      }
+    }
   }
 })
 
@@ -101,10 +112,7 @@ ipcMain.handle("update-recent", (event, info: any) => {
   if (recent.length > 8) recent.pop()
   const dupe = functions.findDupe(recent, info)
   if (dupe !== -1) recent.splice(dupe, 1)
-  recent.unshift({...info, skip: false})
-  if (!info.skip) {
-    history.splice(++historyIndex, 999999999, info)
-  }
+  recent.unshift(info)
   store.set("recent", recent)
   window?.webContents.send("update-recent-gui")
 })
@@ -156,7 +164,7 @@ ipcMain.handle("select-file", async () => {
   const files = await dialog.showOpenDialog(window, {
     filters: [
       {name: "All Files", extensions: ["*"]},
-      {name: "Audio", extensions: ["mp3", "wav", "ogg", "flac"]}
+      {name: "Audio", extensions: ["mp3", "wav", "ogg", "flac", "aac"]}
     ],
     properties: ["openFile"]
   })

@@ -78,9 +78,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
         const invokePlay = (event: any, info: any) => {
             if (info.songUrl) {
-                submit(info.songUrl, info.skip)
+                submit(info.songUrl)
             } else {
-                upload(info.song, info.skip)
+                upload(info.song)
             }
         }
         const changePlayState = () => {
@@ -654,7 +654,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         songCover.current!.src = state.songCover
     }
 
-    const upload = async (file?: string, skip?: boolean) => {
+    const upload = async (file?: string) => {
         if (!file) file = await ipcRenderer.invoke("select-file")
         if (!file) return
         if (!file.startsWith("file:///")) file = `file:///${file}`
@@ -680,7 +680,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         await Tone.loaded()
         duration()
         updateMetadata()
-        updateRecentFiles(skip)
+        updateRecentFiles()
         if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
             stop()
         }
@@ -816,7 +816,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         document.body.removeChild(a)
     }
 
-    const submit = async (value?: string, skip?: boolean) => {
+    const submit = async (value?: string) => {
         if (!value) value = searchBox.current?.value
         if (!value) return
         searchBox.current!.value = ""
@@ -835,7 +835,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             await Tone.loaded()
             duration()
             updateMetadata()
-            updateRecentFiles(skip)
+            updateRecentFiles()
             if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
                 stop()
             }
@@ -846,15 +846,14 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
     }
 
-    const updateRecentFiles = (skip?: boolean) => {
+    const updateRecentFiles = () => {
         const current = state.grainPlayer ? source : player
         ipcRenderer.invoke("update-recent", {
             songName: state.songName, 
             song: state.song,
             songCover: state.songCover,
             songUrl: state.songUrl,
-            duration: current.buffer.duration,
-            skip
+            duration: current.buffer.duration
         })
     }
 

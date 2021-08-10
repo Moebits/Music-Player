@@ -15,7 +15,7 @@ It's basically the GUI version of my [Music Player Web](https://github.com/Tenpi
 - Play local files, YouTube videos, and Soundcloud tracks
 - Render and download audio with effects
 - Keeps a record of recent plays
-- Play previous or next tracks (from your play history)
+- Play previous and next tracks (from your file system)
 
 ### Installation
 

@@ -6,6 +6,8 @@ import pauseTinyHover from "../assets/icons/pauseTiny-hover.png"
 import fs from "fs"
 import path from "path"
 
+const audioExtensions = [".mp3", ".wav", ".ogg", ".flac", ".aac"]
+
 export default class Functions {
     public static arrayIncludes = (str: string, arr: string[]) => {
         for (let i = 0; i < arr.length; i++) {
@@ -144,5 +146,17 @@ export default class Functions {
                 button.src = playTiny
             }
         }
+    }
+
+    public static getSortedFiles = async (dir: string) => {
+        const files = await fs.promises.readdir(dir)
+        return files
+            .filter((f) => audioExtensions.includes(path.extname(f)))
+            .map(fileName => ({
+                name: fileName,
+                time: fs.statSync(`${dir}/${fileName}`).mtime.getTime(),
+            }))
+            .sort((a, b) => b.time - a.time)
+            .map(file => file.name)
     }
 }
