@@ -37,7 +37,7 @@ const TitleBar: React.FunctionComponent = (props) => {
     const [hoverFX, setHoverFX] = useState(false)
     const [hoverEQ, setHoverEQ] = useState(false)
     const [hoverTheme, setHoverTheme] = useState(false)
-    const [theme, setTheme] = useState("light")
+    const [theme, setTheme] = useState("dark")
     const [ignored, forceUpdate] = useReducer(x => x + 1, 0)
     const playRef = useRef(null) as any
 
@@ -110,12 +110,20 @@ const TitleBar: React.FunctionComponent = (props) => {
             document.documentElement.style.setProperty("--title-color", "#090409")
             document.documentElement.style.setProperty("--text-color", "#f53171")
             document.documentElement.style.setProperty("--player-color", "#090409")
+            document.documentElement.style.setProperty("--filter-color", "#090409")
+            document.documentElement.style.setProperty("--filter-text", "#ff2c7d")
+            document.documentElement.style.setProperty("--effect-color", "#090409")
+            document.documentElement.style.setProperty("--effect-text", "#ff2c5a")
             setTheme("dark")
             ipcRenderer.invoke("save-theme", "dark")
         } else {
             document.documentElement.style.setProperty("--title-color", "#f53171")
             document.documentElement.style.setProperty("--text-color", "black")
             document.documentElement.style.setProperty("--player-color", "#ea224b")
+            document.documentElement.style.setProperty("--filter-color", "#ff2c7d")
+            document.documentElement.style.setProperty("--filter-text", "black")
+            document.documentElement.style.setProperty("--effect-color", "#ff2c5a")
+            document.documentElement.style.setProperty("--effect-text", "black")
             setTheme("light")
             ipcRenderer.invoke("save-theme", "light")
         }

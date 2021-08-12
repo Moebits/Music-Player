@@ -15,12 +15,11 @@
 }
 
 .filters-dialog-box {
-    pointer-events: all;
     margin-top: -100px;
     width: 60%;
     height: 45%;
     border-radius: 10px;
-    background-color: #ff2c7d;
+    background-color: var(--filter-color);
     padding: 10px;
     display: flex;
     flex-direction: column;
@@ -48,7 +47,7 @@
 }
 
 .filters-title {
-    color: black;
+    color: var(--filter-text);
     font-size: 20px;
     font-family: "Maven Pro", sans-serif;
     user-select: text;
@@ -79,7 +78,7 @@
 .filters-text {
     user-select: text;
     cursor: text;
-    color: black;
+    color: var(--filter-text);
     font-family: "Yusei Magic", sans-serif;
     font-size: 15px;
     &::selection {

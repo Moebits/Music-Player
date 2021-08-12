@@ -151,6 +151,10 @@ ipcMain.handle("get-art", async (event, url: string) => {
   return picture
 })
 
+ipcMain.handle("trigger-paste", async (event) => {
+  window?.webContents.send("trigger-paste")
+})
+
 ipcMain.handle("change-play-state", () => {
   window?.webContents.send("change-play-state")
 })
@@ -164,7 +168,8 @@ ipcMain.handle("select-file", async () => {
   const files = await dialog.showOpenDialog(window, {
     filters: [
       {name: "All Files", extensions: ["*"]},
-      {name: "Audio", extensions: ["mp3", "wav", "ogg", "flac", "aac"]}
+      {name: "Audio", extensions: ["mp3", "wav", "ogg", "flac", "aac"]},
+      {name: "MIDI", extensions: ["mid"]}
     ],
     properties: ["openFile"]
   })

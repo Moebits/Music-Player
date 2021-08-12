@@ -16,6 +16,7 @@ It's basically the GUI version of my [Music Player Web](https://github.com/Tenpi
 - Render and download audio with effects
 - Keeps a record of recent plays
 - Play previous and next tracks (from your file system)
+- Support for playing MIDI files with a synthesizer
 
 ### Installation
 

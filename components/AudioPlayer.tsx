@@ -1,8 +1,9 @@
 import React, {useEffect, useRef} from "react"
-import {ipcRenderer} from "electron" 
+import {ipcRenderer, clipboard} from "electron" 
 import path from "path"
 import Slider from "rc-slider"
 import * as Tone from "tone"
+import {Midi} from '@tonejs/midi'
 import jsmediatags from "jsmediatags"
 import encodeWAV from "audiobuffer-to-wav"
 import functions from "../structures/functions"
@@ -39,6 +40,7 @@ import previousHoverIcon from "../assets/icons/previous-hover.png"
 import nextIcon from "../assets/icons/next.png"
 import nextHoverIcon from "../assets/icons/next-hover.png"
 import placeholder from "../assets/images/placeholder.png"
+import midiPlaceholder from "../assets/images/midi-placeholder.png"
 import RecentPlays from "./RecentPlays"
 import "../styles/audioplayer.less"
 
@@ -86,6 +88,10 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         const changePlayState = () => {
             play()
         }
+        const triggerPaste = () => {
+            const text = clipboard.readText()
+            if (text) searchBox.current!.value += text
+        }
         initState()
         ipcRenderer.on("open-file", openFile)
         ipcRenderer.on("invoke-play", invokePlay)
@@ -96,6 +102,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         ipcRenderer.on("highpass", highpass)
         ipcRenderer.on("highshelf", highshelf)
         ipcRenderer.on("lowshelf", lowshelf)
+        ipcRenderer.on("trigger-paste", triggerPaste)
         return () => {
             ipcRenderer.removeListener("open-file", openFile)
             ipcRenderer.removeListener("invoke-play", invokePlay)
@@ -106,6 +113,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             ipcRenderer.removeListener("highpass", highpass)
             ipcRenderer.removeListener("highshelf", highshelf)
             ipcRenderer.removeListener("lowshelf", lowshelf)
+            ipcRenderer.removeListener("trigger-paste", triggerPaste)
         }
     }, [])
 
@@ -115,12 +123,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         speed: 1,
         volume: 1,
         muted: false,
-        speedBox: true,
         loop: false,
         abloop: false,
         loopStart: 0,
         loopEnd: 0,
-        grainPlayer: false,
+        preservesPitch: false,
         duration: 0,
         song: "",
         songName: "No title",
@@ -142,16 +149,22 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         highshelfCutoff: 70,
         highshelfGain: 0,
         lowshelfCutoff: 30,
-        lowshelfGain: 0
+        lowshelfGain: 0,
+        midi: false,
+        midiFile: null as unknown as Midi,
+        midiDuration: 0,
+        reverseNotes: null as any,
+        notes: null as any,
+        bpm: 0
     }
 
     const initialState = {...state}
 
     const initState = async () => {
         const saved = await ipcRenderer.invoke("get-state")
-        if (saved.speedBox !== undefined) {
-            state.speedBox = saved.speedBox
-            speedCheckbox.current!.checked = state.speedBox
+        if (saved.preservesPitch !== undefined) {
+            state.preservesPitch = saved.preservesPitch
+            speedCheckbox.current!.checked = !state.preservesPitch
         }
         if (saved.speed !== undefined) {
             state.speed = saved.speed
@@ -189,8 +202,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const refreshState = () => {
-        const apply = {source, player}
-        speedBox(state.speedBox)
+        const apply = {grain, player}
+        preservesPitch(state.preservesPitch)
         speed(state.speed)
         pitch(state.pitch)
         reverse(state.reverse, apply)
@@ -199,16 +212,17 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const saveState = () => {
-        ipcRenderer.invoke("save-state", {reverse: state.reverse, pitch: state.pitch, speed: state.speed, speedBox: state.speedBox, loop: state.loop, abloop: state.abloop, loopStart: state.loopStart, loopEnd: state.loopEnd})
+        ipcRenderer.invoke("save-state", {reverse: state.reverse, pitch: state.pitch, speed: state.speed, preservesPitch: state.preservesPitch, loop: state.loop, abloop: state.abloop, loopStart: state.loopStart, loopEnd: state.loopEnd})
     }
 
     let player: Tone.Player
-    let source: Tone.GrainPlayer
+    let grain: Tone.GrainPlayer
+    let synths = [] as Tone.PolySynth[]
     if (typeof window !== "undefined") {
         player = new Tone.Player().sync().start().toDestination()
-        source = new Tone.GrainPlayer().sync().start()
-        source.grainSize = 0.1
-        source.overlap = 0.1
+        grain = new Tone.GrainPlayer().sync().start()
+        grain.grainSize = 0.1
+        grain.overlap = 0.1
     }
 
     const removeEffect = (type: string) => {
@@ -231,25 +245,58 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     
     const applyEffects = () => {
         player.disconnect()
-        source.disconnect()
+        grain.disconnect()
+        if (synths.length) synths.forEach((s) => s.disconnect())
         const nodes = state.effects.map((e) => e?.node).filter(Boolean)
-        const current = state.grainPlayer ? source : player
+        const current = state.preservesPitch ? grain : player
         if (nodes[0]) {
-            nodes.map((n) => n.disconnect())
-            current.chain(...[...nodes, Tone.Destination])
+            nodes.forEach((n) => n.disconnect())
+            if (state.midi) {
+                if (synths.length) synths.forEach((s) => s.chain(...[...nodes, Tone.Destination]))
+            } else {
+                current.chain(...[...nodes, Tone.Destination])
+            }
         } else {
-            current.toDestination()
+            if (state.midi) {
+                if (synths.length) synths.forEach((s) => s.toDestination())
+            } else {
+                current.toDestination()
+            }
         }
     }
 
-    const duration = () => {
-        const current = state.grainPlayer ? source : player
-        state.duration = current.buffer.duration / current.playbackRate
+    const disposeSynths = (synthArray?: any[]) => {
+        let array = synthArray ? synthArray : synths
+        while (array.length) {
+            const synth = array.shift()
+            synth?.dispose()
+        }
+    }
+
+    const switchState = () => {
+        if (state.midi) {
+            grain.disconnect()
+            player.disconnect()
+        } else {
+            if (synths.length) disposeSynths()
+        }
+    }
+
+    const duration = (value?: number) => {
+        if (value) {
+            state.duration = value
+        } else {
+            if (!state.midi) {
+                const current = state.preservesPitch ? grain : player
+                state.duration = current.buffer.duration / current.playbackRate
+            }
+        }
         secondsTotal.current!.innerText = functions.formatSeconds(state.duration)
     }
 
     const checkBuffer = () => {
-        const current = state.grainPlayer ? source : player
+        if (state.midi) return true
+        const current = state.preservesPitch ? grain : player
         return current.buffer.loaded
     }
 
@@ -265,8 +312,10 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (progress === 100) stop()
         }
         if (Tone.Transport.state === "started") {
+            if (state.midi) disposeSynths()
             Tone.Transport.pause()
         } else {
+            if (state.midi) await playMIDI()
             Tone.Transport.start()
         }
         functions.flipPlayTitle()
@@ -350,27 +399,29 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         } else {
             speedImg.current!.src = speedActiveIcon
         }
-        let currentSource = source
-        let currentPlayer = player
-        if (applyState) {
-            currentSource = applyState.source
-            currentPlayer = applyState.player
-        }
-        if (state.speedBox) {
-            state.grainPlayer = false
-            currentPlayer.playbackRate = state.speed
-            applyEffects()
+        if (state.midi) {
+            await playMIDI()
         } else {
-            state.grainPlayer = true
-            currentSource.playbackRate = state.speed
-            applyEffects()
+            let currentGrain = grain
+            let currentPlayer = player
+            if (applyState) {
+                currentGrain = applyState.grain
+                currentPlayer = applyState.player
+            }
+            if (state.preservesPitch) {
+                currentGrain.playbackRate = state.speed
+                applyEffects()
+            } else {
+                currentPlayer.playbackRate = state.speed
+                applyEffects()
+            }
+            let percent = Tone.Transport.seconds / state.duration
+            state.duration  = (grain.buffer.duration / state.speed)
+            let val = percent * state.duration
+            if (val < 0) val = 0
+            if (val > state.duration - 1) val = state.duration - 1
+            Tone.Transport.seconds = val
         }
-        let percent = Tone.Transport.seconds / state.duration
-        state.duration  = (source.buffer.duration / state.speed)
-        let val = percent * state.duration
-        if (val < 0) val = 0
-        if (val > state.duration - 2) val = state.duration - 2
-        Tone.Transport.seconds = val
         if (state.abloop) {
             applyAB(state.duration)
         } else {
@@ -385,9 +436,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         saveState()
     }
 
-    const speedBox = (value?: boolean) => {
-        state.speedBox = value ? value : !state.speedBox
-        speedCheckbox.current!.checked = state.speedBox
+    const preservesPitch = (value?: boolean) => {
+        state.preservesPitch = value !== undefined ? value : !state.preservesPitch
+        speedCheckbox.current!.checked = !state.preservesPitch
         saveState()
         speed()
     }
@@ -418,20 +469,15 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const reset = async () => {
-        const song = state.song
-        const songName = state.songName
-        const songCover = state.songCover
-        state = {...initialState}
-        state.song = song
-        state.songName = songName
-        state.songCover = songCover
-        source.playbackRate = state.speed
+        const {song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, reverseNotes, notes} = state
+        state = {...initialState, song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, reverseNotes, notes}
+        grain.playbackRate = state.speed
         player.playbackRate = state.speed
-        source.detune = state.pitch * 100
+        grain.detune = state.pitch * 100
         speedBar.current!.value = String(state.speed)
-        speedCheckbox.current!.checked = state.speedBox
+        speedCheckbox.current!.checked = !state.preservesPitch
         pitchBar.current!.value = String(state.pitch)
-        source.reverse = state.reverse
+        grain.reverse = state.reverse
         player.reverse = state.reverse
         Tone.Transport.loop = state.loop
         updateABSliderPos([0, 100])
@@ -474,30 +520,43 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const reverse = async (value?: boolean, applyState?: any) => {
-        let currentSource = source
-        let currentPlayer = player
-        let skip = false
-        if (applyState) {
-            currentSource = applyState.source
-            currentPlayer = applyState.player
-            skip = true
-        }
         let percent = Tone.Transport.seconds / state.duration
         let val = (1-percent) * state.duration
         if (val < 0) val = 0
-        if (val > state.duration - 2) val = state.duration - 2
-        if (value === false || (state.reverse === true && !skip)) {
-            if (!applyState) Tone.Transport.seconds = val
-            state.reverse = false
-            currentSource.reverse = false
-            currentPlayer.reverse = false
-            reverseImg.current!.src = reverseIcon
+        if (val > state.duration - 1) val = state.duration - 1
+        if (state.midi) {
+            if (value === false || (state.reverse === true)) {
+                Tone.Transport.seconds = val
+                state.reverse = false
+                reverseImg.current!.src = reverseIcon
+            } else {
+                Tone.Transport.seconds = val
+                state.reverse = true
+                reverseImg.current!.src = reverseActiveIcon
+            }
+            await playMIDI()
         } else {
-            if (!applyState) Tone.Transport.seconds = val
-            state.reverse = true
-            currentSource.reverse = true
-            currentPlayer.reverse = true
-            reverseImg.current!.src = reverseActiveIcon
+            let currentGrain = grain
+            let currentPlayer = player
+            let skip = false
+            if (applyState) {
+                currentGrain = applyState.grain
+                currentPlayer = applyState.player
+                skip = true
+            }
+            if (value === false || (state.reverse === true && !skip)) {
+                if (!applyState) Tone.Transport.seconds = val
+                state.reverse = false
+                currentGrain.reverse = false
+                currentPlayer.reverse = false
+                reverseImg.current!.src = reverseIcon
+            } else {
+                if (!applyState) Tone.Transport.seconds = val
+                state.reverse = true
+                currentGrain.reverse = true
+                currentPlayer.reverse = true
+                reverseImg.current!.src = reverseActiveIcon
+            }
         }
         applyAB(state.duration)
         if (!applyState) updateMetadata()
@@ -531,10 +590,16 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             }
             if (!state.loop) {
                 if (Tone.Transport.seconds > state.duration - 1) {
+                    disposeSynths()
                     Tone.Transport.pause()
                     Tone.Transport.seconds = Math.round(state.duration) - 1
                 }
                 if (Tone.Transport.seconds === Math.round(state.duration) - 1) Tone.Transport.seconds = Math.round(state.duration)
+            } else {
+                if (Tone.Transport.seconds > state.duration) {
+                    Tone.Transport.seconds = 0
+                    if (state.midi) playMIDI()
+                }
             }
         }, 1000)
 
@@ -610,15 +675,16 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (state.reverse === true) {
             let value = (1-percent) * state.duration
             if (value < 0) value = 0
-            if (value > state.duration - 2) value = state.duration - 2
+            if (value > state.duration - 1) value = state.duration - 1
             Tone.Transport.seconds = value
         } else {
             let value = percent * state.duration
             if (value < 0) value = 0
-            if (value > state.duration - 2) value = state.duration - 2
+            if (value > state.duration - 1) value = state.duration - 1
             Tone.Transport.seconds = value
         }
-        if (Tone.Transport.state === "paused") play()
+        if (state.midi) playMIDI()
+        if (Tone.Transport.state === "paused" || Tone.Transport.state === "stopped") play()
     }
 
     const updateProgressText = (value: number) => {
@@ -645,7 +711,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         } else {
             pitchImg.current!.src = pitchActiveIcon
         }
-        source.detune = state.pitch * 100
+        if (state.midi) {
+            await playMIDI()
+        } else {
+            grain.detune = state.pitch * 100
+        }
         saveState()
     }
 
@@ -654,10 +724,93 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         songCover.current!.src = state.songCover
     }
 
+    const playMIDI = async (applyState?: any) => {
+        const localState = applyState ? applyState.state : state
+        const synthArray = applyState ? applyState.synths : synths
+        if (!localState.midiFile) return
+        const midi = localState.midiFile
+        let totalDuration = 0
+        midi.tracks.forEach((track: any) => {
+            track.notes.forEach((note: any) => {
+                if (note.time + note.duration > totalDuration) totalDuration = note.time + note.duration
+            })
+        })
+        disposeSynths(synthArray)
+        midi.tracks.forEach((track: any) => {
+            const synth = new Tone.PolySynth(Tone.Synth, {oscillator: {type: "fatsquare"}, envelope: {attack: 0.02, decay: 0.5, sustain: 0.3, release: 0.7}}).sync()
+            if (!applyState) synth.toDestination()
+            synthArray.push(synth)
+            if (localState.reverse) {
+                if (!localState.reverseNotes) localState.reverseNotes = track.notes.reverse()
+                const initialTime = localState.reverseNotes[0].time
+                localState.reverseNotes.forEach((reverseNote: any) => {
+                    let transposed = reverseNote.name
+                    if (localState.preservesPitch) {
+                        transposed = functions.transposeNote(reverseNote.name, localState.pitch)
+                    } else {
+                        transposed = functions.transposeNote(reverseNote.name, localState.pitch + functions.noteFactor(localState.speed))
+                    }
+                    synth.triggerAttackRelease(transposed, reverseNote.duration / localState.speed, Math.abs(reverseNote.time - initialTime) / localState.speed, reverseNote.velocity)
+                })
+            } else {
+                if (!localState.notes) localState.notes = track.notes
+                localState.notes.forEach((note: any) => {
+                    let transposed = note.name
+                    if (localState.preservesPitch) {
+                        transposed = functions.transposeNote(note.name, localState.pitch)
+                    } else {
+                        transposed = functions.transposeNote(note.name, localState.pitch + functions.noteFactor(localState.speed))
+                    }
+                    synth.triggerAttackRelease(transposed, note.duration / localState.speed, note.time / localState.speed, note.velocity)
+                })
+            }
+        })
+        if (!applyState && state.speed !== 1) {
+            let percent = Tone.Transport.seconds / totalDuration
+            totalDuration = (localState.midiDuration / localState.speed)
+            let val = percent * totalDuration
+            if (val < 0) val = 0
+            if (val > totalDuration - 1) val = totalDuration - 1
+            Tone.Transport.seconds = val
+        }
+        duration(totalDuration)
+        updateMetadata()
+    }
+
+    const uploadMIDI = async (file: string) => {
+        state.midi = true
+        const midi = await Midi.fromUrl(file)
+        let totalDuration = 0
+        midi.tracks.forEach(track => {
+            track.notes.forEach(note => {
+                if (note.time + note.duration > totalDuration) totalDuration = note.time + note.duration
+            })
+        })
+        state.midiDuration = totalDuration
+        state.bpm = midi.header.tempos[0].bpm
+        state.songCover = midiPlaceholder
+        state.songName = path.basename(file).replace(".mid", "")
+        state.song = file
+        state.songUrl = ""
+        state.midiFile = midi
+        state.reverseNotes = null
+        state.notes = null
+        updateRecentFiles()
+        switchState()
+        if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
+            stop()
+        }
+        if (Tone.Transport.state === "stopped") {
+            play()
+        }
+    }
+
     const upload = async (file?: string) => {
         if (!file) file = await ipcRenderer.invoke("select-file")
         if (!file) return
+        if (path.extname(file) === ".mid") return uploadMIDI(file)
         if (!file.startsWith("file:///")) file = `file:///${file}`
+        state.midi = false
         const fileObject = await functions.getFile(file)
         const tagInfo = await new Promise((resolve, reject) => {
             new jsmediatags.Reader(fileObject).read({onSuccess: (tagInfo: any) => resolve(tagInfo), onError: (error: any) => reject(error)})   
@@ -675,12 +828,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         state.songName = path.basename(file).replace(".mp3", "").replace(".wav", "").replace(".flac", "").replace(".ogg", "")
         state.song = file
         state.songUrl = ""
-        await source.buffer.load(state.song)
+        await grain.buffer.load(state.song)
         await player.load(state.song)
         await Tone.loaded()
         duration()
         updateMetadata()
         updateRecentFiles()
+        switchState()
         if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
             stop()
         }
@@ -713,8 +867,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if ((Tone.Transport.seconds >= Tone.Transport.loopStart) && (Tone.Transport.seconds <= Tone.Transport.loopEnd)) return
         let val = Number(Tone.Transport.loopStart)
         if (val < 0) val = 0
-        if (val > state.duration - 2) val = state.duration - 2
+        if (val > state.duration - 1) val = state.duration - 1
         Tone.Transport.seconds = val
+        if (state.midi) playMIDI()
         saveState()
     }
 
@@ -742,10 +897,10 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         saveState()
     }
 
-    const applyState = async (localState: any, source: Tone.GrainPlayer, player: Tone.Player, reload?: boolean) => {
-        const apply = {state: localState, source, player}
-        if (reload && localState.song) {
-            await source.buffer.load(localState.song)
+    const applyState = async (localState: any, grain: Tone.GrainPlayer, player: Tone.Player) => {
+        const apply = {state: localState, grain, player}
+        if (localState.song) {
+            await grain.buffer.load(localState.song)
             await player.load(localState.song)
             await Tone.loaded()
         }
@@ -777,18 +932,55 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             editCode += "-delay"
         }
         state.editCode = editCode
-        const current = localState.grainPlayer ? source : player
+        const current = localState.preservesPitch ? grain : player
         return {current, effectNodes}
+    }
+
+    const applyMIDIState = async (localState: any, synths: Tone.PolySynth[]) => {
+        const apply = {state: localState, synths}
+        await playMIDI(apply)
+        let editCode = ""
+        if (localState.speed !== 1) {
+            editCode += "-speed"
+        }
+        if (localState.reverse !== false) {
+            editCode += "-reverse"
+        } 
+        if (localState.pitch !== 0) {
+            editCode += "-pitch"
+        }
+        if (localState.abloop !== false) {
+            editCode += "-loop"
+        }
+        let effectNodes = []
+        if (localState.reverbMix !== 0) {
+            const verb = await reverb(null, localState, true) as Tone.Reverb
+            effectNodes.push(verb)
+            editCode += "-reverb"
+        }
+        if (localState.delayMix !== 0) {
+            const del = await delay(null, localState, true) as Tone.PingPongDelay
+            effectNodes.push(del)
+            editCode += "-delay"
+        }
+        state.editCode = editCode
+        return {synthArray: synths, effectNodes}
     }
 
      /** Renders the same as online */
      const render = async (start: number, duration: number) => {
         return Tone.Offline(async ({transport}) => {
-            let source = new Tone.GrainPlayer().sync()
+            let grain = new Tone.GrainPlayer().sync()
             let player = new Tone.Player().sync()
-            source.grainSize = 0.1
-            const {current, effectNodes} = await applyState(state, source, player, true)
-            current.chain(...effectNodes).toDestination().start()
+            let synths = [] as Tone.PolySynth[]
+            grain.grainSize = 0.1
+            if (state.midi) {
+                const {synthArray, effectNodes} = await applyMIDIState(state, synths)
+                synthArray.forEach((s) => s.chain(...effectNodes).toDestination())
+            } else {
+                const {current, effectNodes} = await applyState(state, grain, player)
+                current.chain(...effectNodes).toDestination().start()
+            }
             transport.start(start)
         }, duration)
     }
@@ -822,6 +1014,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         searchBox.current!.value = ""
         const songBuffer = await ipcRenderer.invoke("get-song", value)
         if (songBuffer) {
+            state.midi = false
             const songName = await ipcRenderer.invoke("get-song-name", value)
             const artwork = await ipcRenderer.invoke("get-art", value)
             window.URL.revokeObjectURL(state.song)
@@ -830,12 +1023,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             state.song = window.URL.createObjectURL(blob)
             state.songCover = artwork
             state.songUrl = value
-            await source.buffer.load(state.song)
+            await grain.buffer.load(state.song)
             await player.load(state.song)
             await Tone.loaded()
             duration()
             updateMetadata()
             updateRecentFiles()
+            switchState()
             if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
                 stop()
             }
@@ -847,34 +1041,36 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const updateRecentFiles = () => {
-        const current = state.grainPlayer ? source : player
+        const current = state.preservesPitch ? grain : player
         ipcRenderer.invoke("update-recent", {
             songName: state.songName, 
             song: state.song,
             songCover: state.songCover,
             songUrl: state.songUrl,
-            duration: current.buffer.duration
+            duration: state.midi ? state.midiDuration : current.buffer.duration,
+            midi: state.midi,
+            bpm: state.bpm
         })
     }
 
     const previous = () => {
-        const current = state.grainPlayer ? source : player
+        const current = state.preservesPitch ? grain : player
         ipcRenderer.invoke("get-previous", {
             songName: state.songName, 
             song: state.song,
             songCover: state.songCover,
             songUrl: state.songUrl,
-            duration: current.buffer.duration
+            duration: state.midi ? state.duration : current.buffer.duration
         })
     }
 
-    const next = () => {const current = state.grainPlayer ? source : player
+    const next = () => {const current = state.preservesPitch ? grain : player
         ipcRenderer.invoke("get-next", {
             songName: state.songName, 
             song: state.song,
             songCover: state.songCover,
             songUrl: state.songUrl,
-            duration: current.buffer.duration
+            duration: state.midi ? state.duration : current.buffer.duration
         })
     }
 
@@ -1118,7 +1314,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                             <div className="speed-popup">
                                 <input type="range" ref={speedBar} onChange={(event) => speed(event.target.value)} min="0.5" max="4" step="0.5" defaultValue="1" className="speed-bar"/>
                                 <div className="speed-checkbox-container">
-                                <p className="speed-text">Pitch?</p><input type="checkbox" ref={speedCheckbox} defaultChecked onChange={() => speedBox()} className="speed-checkbox"/>
+                                <p className="speed-text">Pitch?</p><input type="checkbox" ref={speedCheckbox} defaultChecked onChange={() => preservesPitch()} className="speed-checkbox"/>
                                 </div>       
                             </div>
                         </div>
@@ -1127,7 +1323,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                             <input type="range" ref={pitchBar} onChange={(event) => pitch(event.target.value)} min="-24" max="24" step="12" defaultValue="0" className="pitch-bar"/>
                         </div>
                         <img className="player-button" src={pitchIcon} ref={pitchImg} onClick={() => pitchPopup.current!.style.display === "flex" ? pitchPopup.current!.style.display = "none" : pitchPopup.current!.style.display = "flex"} width="30" height="30" onMouseEnter={() => toggleHover("pitch", true)} onMouseLeave={() => toggleHover("pitch")}/>
-                        <div className="progress-container">
+                        <div className="progress-container" onMouseUp={() => state.dragging = false}>
                             <Slider className="progress-slider" ref={progressBar} onBeforeChange={() => state.dragging = true} onChange={(value) => updateProgressText(value)} onAfterChange={(value) => seek(value)} defaultValue={0}/>
                             <Slider.Range className="ab-slider" ref={abSlider} min={0} max={100} defaultValue={[0, 100]} onBeforeChange={() => state.dragging = true} onChange={(value) => updateProgressTextAB(value)} onAfterChange={(value) => abloop(value)} style={({display: "none"})}/>
                         </div>

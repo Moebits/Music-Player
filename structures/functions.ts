@@ -22,9 +22,15 @@ export default class Functions {
 
     public static findDupe = (recent: any[], info: any) => {
         for (let i = recent.length - 1; i >= 0; i--) {
-            if (recent[i].songUrl === info.songUrl
-                && recent[i].songName === info.songName
-                && recent[i].duration === info.duration) return i
+            if (recent[i].midi) {
+                if (recent[i].bpm === info.bpm
+                    && recent[i].songName === info.songName
+                    && recent[i].duration === info.duration) return i
+            } else {
+                if (recent[i].songUrl === info.songUrl
+                    && recent[i].songName === info.songName
+                    && recent[i].duration === info.duration) return i
+            }
         }
         return -1
     }
@@ -158,5 +164,27 @@ export default class Functions {
             }))
             .sort((a, b) => b.time - a.time)
             .map(file => file.name)
+    }
+
+    public static transposeNote = (note: string, transpose: number) => {
+        const octave = Number(note.match(/\d+/)?.[0])
+        note = note.replace(/\d+/g, "")
+        const octaveAdjustment = Math.round(transpose / 12)
+        const noteAdjustment = transpose - (octaveAdjustment * 12)
+        const notes = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"]
+        const noteIndex = notes.findIndex((n) => n === note)
+        let adjusted = noteIndex + noteAdjustment
+        while (adjusted > 12) adjusted -= 12
+        while (adjusted < 0) adjusted += 12
+        return `${notes[adjusted]}${octave + octaveAdjustment}`
+    }
+
+    public static noteFactor = (scaleFactor: number) => {
+        if (scaleFactor === 1) return 0
+        if (scaleFactor < 1) {
+            return Math.round(-1 * ((1 / scaleFactor) * 6))
+        } else {
+            return Math.round(scaleFactor * 6)
+        }
     }
 }

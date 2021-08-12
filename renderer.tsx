@@ -6,12 +6,14 @@ import VersionDialog from "./components/VersionDialog"
 import AudioPlayer from "./components/AudioPlayer"
 import AudioEffects from "./components/AudioEffects"
 import AudioFilters from "./components/AudioFilters"
+import ContextMenu from "./components/ContextMenu"
 import "./index.less"
 
 const App = () => {
   return (
     <main className="app">
       <TitleBar/>
+      <ContextMenu/>
       <VersionDialog/>
       <AudioEffects/>
       <AudioFilters/>

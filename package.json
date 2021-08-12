@@ -1,6 +1,6 @@
 {
   "name": "music-player",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "A music player with real-time pitch shifting, reversing, and time stretching",
   "main": "dist/main.js",
   "scripts": {
@@ -12,6 +12,7 @@
   "keywords": [
     "music",
     "audio",
+    "midi",
     "player",
     "anime",
     "cute"
@@ -70,6 +71,10 @@
       {
         "ext": "aac",
         "description": "Audio files"
+      },
+      {
+        "ext": "mid",
+        "description": "MIDI files"
       }
     ]
   },
@@ -98,6 +103,7 @@
     "webpack-cli": "^4.4.0"
   },
   "dependencies": {
+    "@tonejs/midi": "^2.0.27",
     "audiobuffer-to-wav": "^1.0.0",
     "bootstrap": "^4.6.0",
     "electron-store": "^8.0.0",
