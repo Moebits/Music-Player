@@ -42,6 +42,7 @@ import nextHoverIcon from "../assets/icons/next-hover.png"
 import placeholder from "../assets/images/placeholder.png"
 import midiPlaceholder from "../assets/images/midi-placeholder.png"
 import RecentPlays from "./RecentPlays"
+import silence from "../assets/silence.mp3"
 import "../styles/audioplayer.less"
 
 const AudioPlayer: React.FunctionComponent = (props) => {
@@ -219,8 +220,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     let grain: Tone.GrainPlayer
     let synths = [] as Tone.PolySynth[]
     if (typeof window !== "undefined") {
-        player = new Tone.Player().sync().start().toDestination()
-        grain = new Tone.GrainPlayer().sync().start()
+        player = new Tone.Player(silence).sync().start().toDestination()
+        grain = new Tone.GrainPlayer(silence).sync().start()
         grain.grainSize = 0.1
         grain.overlap = 0.1
     }
