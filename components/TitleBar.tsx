@@ -107,6 +107,7 @@ const TitleBar: React.FunctionComponent = (props) => {
     const changeTheme = (value?: string) => {
         let condition = value !== undefined ? value === "dark" : theme === "light"
         if (condition) {
+            document.documentElement.style.setProperty("--bg-color", "#090409")
             document.documentElement.style.setProperty("--title-color", "#090409")
             document.documentElement.style.setProperty("--text-color", "#f53171")
             document.documentElement.style.setProperty("--player-color", "#090409")
@@ -114,9 +115,17 @@ const TitleBar: React.FunctionComponent = (props) => {
             document.documentElement.style.setProperty("--filter-text", "#ff2c7d")
             document.documentElement.style.setProperty("--effect-color", "#090409")
             document.documentElement.style.setProperty("--effect-text", "#ff2c5a")
+            document.documentElement.style.setProperty("--placeholder-color", "#ff3a75")
+            document.documentElement.style.setProperty("--version-color", "#090409")
+            document.documentElement.style.setProperty("--version-text", "#ff3a7c")
+            document.documentElement.style.setProperty("--version-accept", "#090409")
+            document.documentElement.style.setProperty("--version-reject", "#090409")
+            document.documentElement.style.setProperty("--version-accept-text", "#ff4492")
+            document.documentElement.style.setProperty("--version-reject-text", "#ff3370")
             setTheme("dark")
             ipcRenderer.invoke("save-theme", "dark")
         } else {
+            document.documentElement.style.setProperty("--bg-color", "#ff4d76")
             document.documentElement.style.setProperty("--title-color", "#f53171")
             document.documentElement.style.setProperty("--text-color", "black")
             document.documentElement.style.setProperty("--player-color", "#ea224b")
@@ -124,6 +133,13 @@ const TitleBar: React.FunctionComponent = (props) => {
             document.documentElement.style.setProperty("--filter-text", "black")
             document.documentElement.style.setProperty("--effect-color", "#ff2c5a")
             document.documentElement.style.setProperty("--effect-text", "black")
+            document.documentElement.style.setProperty("--placeholder-color", "white")
+            document.documentElement.style.setProperty("--version-color", "#ff3a7c")
+            document.documentElement.style.setProperty("--version-text", "black")
+            document.documentElement.style.setProperty("--version-accept", "#ff4492")
+            document.documentElement.style.setProperty("--version-reject", "#ff3370")
+            document.documentElement.style.setProperty("--version-accept-text", "black")
+            document.documentElement.style.setProperty("--version-reject-text", "black")
             setTheme("light")
             ipcRenderer.invoke("save-theme", "light")
         }
