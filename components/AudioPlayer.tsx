@@ -596,7 +596,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 }
                 if (Tone.Transport.seconds === Math.round(state.duration) - 1) Tone.Transport.seconds = Math.round(state.duration)
             } else {
-                if (Tone.Transport.seconds > state.duration - 1) {
+                if (Tone.Transport.seconds > state.duration) {
                     Tone.Transport.seconds = 0
                     if (state.midi) playMIDI()
                 }
