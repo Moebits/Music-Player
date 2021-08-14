@@ -6,7 +6,7 @@ import pauseTinyHover from "../assets/icons/pauseTiny-hover.png"
 import fs from "fs"
 import path from "path"
 
-const audioExtensions = [".mp3", ".wav", ".ogg", ".flac", ".aac"]
+const audioExtensions = [".mp3", ".wav", ".ogg", ".flac", ".aac", ".mid"]
 
 export default class Functions {
     public static arrayIncludes = (str: string, arr: string[]) => {

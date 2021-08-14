@@ -163,6 +163,21 @@ ipcMain.handle("play-state-changed", () => {
   window?.webContents.send("play-state-changed")
 })
 
+ipcMain.handle("save-dialog", async (event, defaultPath: string) => {
+  if (!window) return
+  const save = await dialog.showSaveDialog(window, {
+    defaultPath,
+    filters: [
+      {name: "All Files", extensions: ["*"]},
+      {name: "MP3", extensions: ["mp3"]},
+      {name: "WAV", extensions: ["wav"]},
+      {name: "MIDI", extensions: ["mid"]}
+    ],
+    properties: ["createDirectory"]
+  })
+  return save.filePath ? save.filePath : null
+})
+
 ipcMain.handle("select-file", async () => {
   if (!window) return
   const files = await dialog.showOpenDialog(window, {

@@ -5,7 +5,6 @@ import Slider from "rc-slider"
 import * as Tone from "tone"
 import {Midi} from '@tonejs/midi'
 import jsmediatags from "jsmediatags"
-import encodeWAV from "audiobuffer-to-wav"
 import functions from "../structures/functions"
 import searchIcon from "../assets/icons/search-icon.png"
 import playIcon from "../assets/icons/play.png"
@@ -43,6 +42,8 @@ import placeholder from "../assets/images/placeholder.png"
 import midiPlaceholder from "../assets/images/midi-placeholder.png"
 import RecentPlays from "./RecentPlays"
 import silence from "../assets/silence.mp3"
+import audioEncoder from "audio-encoder"
+import fs from "fs"
 import "../styles/audioplayer.less"
 
 const AudioPlayer: React.FunctionComponent = (props) => {
@@ -154,8 +155,6 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         midi: false,
         midiFile: null as unknown as Midi,
         midiDuration: 0,
-        reverseNotes: null as any,
-        notes: null as any,
         bpm: 0
     }
 
@@ -470,8 +469,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const reset = async () => {
-        const {song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, reverseNotes, notes} = state
-        state = {...initialState, song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, reverseNotes, notes}
+        const {song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm} = state
+        state = {...initialState, song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm}
         grain.playbackRate = state.speed
         player.playbackRate = state.speed
         grain.detune = state.pitch * 100
@@ -597,7 +596,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 }
                 if (Tone.Transport.seconds === Math.round(state.duration) - 1) Tone.Transport.seconds = Math.round(state.duration)
             } else {
-                if (Tone.Transport.seconds > state.duration) {
+                if (Tone.Transport.seconds > state.duration - 1) {
                     Tone.Transport.seconds = 0
                     if (state.midi) playMIDI()
                 }
@@ -725,26 +724,34 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         songCover.current!.src = state.songCover
     }
 
-    const playMIDI = async (applyState?: any) => {
+    const playMIDI = async (applyState?: any, options?: {wave?: any, attack?: number, decay?: number, sustain?: number, release?: number, pitch?: number, poly?: boolean, portamento?: number}) => {
+        if (!options) options = {}
+        if (!options.wave) options.wave = "square"
+        if (!options.attack) options.attack = 0.02
+        if (!options.decay) options.decay = 0.5
+        if (!options.sustain) options.sustain = 0.3
+        if (!options.release) options.release = 0.5
+        if (!options.poly) options.poly = true
+        if (!options.portamento) options.portamento = 0
+        if (!options.pitch) options.pitch = 0
         const localState = applyState ? applyState.state : state
         const synthArray = applyState ? applyState.synths : synths
         if (!localState.midiFile) return
-        const midi = localState.midiFile
-        let totalDuration = 0
-        midi.tracks.forEach((track: any) => {
-            track.notes.forEach((note: any) => {
-                if (note.time + note.duration > totalDuration) totalDuration = note.time + note.duration
-            })
-        })
+        const midi = localState.midiFile as Midi
         disposeSynths(synthArray)
         midi.tracks.forEach((track: any) => {
-            const synth = new Tone.PolySynth(Tone.Synth, {oscillator: {type: "fatsquare"}, envelope: {attack: 0.02, decay: 0.5, sustain: 0.3, release: 0.7}}).sync()
+            let synth = null as any
+            if (options?.poly) {
+                synth = new Tone.PolySynth(Tone.Synth, {oscillator: {type: options?.wave}, envelope: {attack: options?.attack, decay: options?.decay, sustain: options?.sustain, release: options?.release}, portamento: options?.portamento, detune: options?.pitch, volume: -6}).sync()
+            } else {
+                synth = new Tone.Synth({oscillator: {type: options?.wave}, envelope: {attack: options?.attack, decay: options?.decay, sustain: options?.sustain, release: options?.release}, portamento: options?.portamento, detune: options?.pitch, volume: -6}).sync()
+            }
             if (!applyState) synth.toDestination()
             synthArray.push(synth)
             if (localState.reverse) {
-                if (!localState.reverseNotes) localState.reverseNotes = track.notes.reverse()
-                const initialTime = localState.reverseNotes[0].time
-                localState.reverseNotes.forEach((reverseNote: any) => {
+                const reverseNotes = track.notes.slice().reverse()
+                const initialTime = reverseNotes[0].time
+                reverseNotes.forEach((reverseNote: any) => {
                     let transposed = reverseNote.name
                     if (localState.preservesPitch) {
                         transposed = functions.transposeNote(reverseNote.name, localState.pitch)
@@ -754,8 +761,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                     synth.triggerAttackRelease(transposed, reverseNote.duration / localState.speed, Math.abs(reverseNote.time - initialTime) / localState.speed, reverseNote.velocity)
                 })
             } else {
-                if (!localState.notes) localState.notes = track.notes
-                localState.notes.forEach((note: any) => {
+                track.notes.forEach((note: any) => {
                     let transposed = note.name
                     if (localState.preservesPitch) {
                         transposed = functions.transposeNote(note.name, localState.pitch)
@@ -766,6 +772,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 })
             }
         })
+        let totalDuration = midi.duration
         if (!applyState && state.speed !== 1) {
             let percent = Tone.Transport.seconds / totalDuration
             totalDuration = (localState.midiDuration / localState.speed)
@@ -776,6 +783,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
         duration(totalDuration)
         updateMetadata()
+        applyEffects()
     }
 
     const uploadMIDI = async (file: string) => {
@@ -794,8 +802,6 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         state.song = file
         state.songUrl = ""
         state.midiFile = midi
-        state.reverseNotes = null
-        state.notes = null
         updateRecentFiles()
         switchState()
         if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
@@ -983,30 +989,72 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 current.chain(...effectNodes).toDestination().start()
             }
             transport.start(start)
-        }, duration)
+        }, duration, 2, 44100)
     }
 
     const download = async () => {
         if (!checkBuffer()) return
-        await Tone.loaded()
-        window.URL.revokeObjectURL(state.download)
-        let duration = state.duration
-        let start = 0
-        if (state.abloop) {
-            start = state.loopStart
-            duration = state.loopEnd - state.loopStart
+        const defaultPath = `${functions.decodeEntities(state.songName)}${state.editCode}`
+        const savePath = await ipcRenderer.invoke("save-dialog", defaultPath)
+        if (!savePath) return
+        if (path.extname(savePath) === ".mid") {
+            if (!state.midi) return
+            const midi = new Midi()
+            midi.header = state.midiFile.header
+            state.midiFile.tracks.forEach((track: any) => {
+                const newTrack = midi.addTrack()
+                if (state.reverse) {
+                    const reverseNotes = track.notes.slice().reverse()
+                    const initialTime = reverseNotes[0].time
+                    reverseNotes.forEach((reverseNote: any) => {
+                        let transposed = reverseNote.name
+                        if (state.preservesPitch) {
+                            transposed = functions.transposeNote(reverseNote.name, state.pitch)
+                        } else {
+                            transposed = functions.transposeNote(reverseNote.name, state.pitch + functions.noteFactor(state.speed))
+                        }
+                        reverseNote.name = transposed
+                        reverseNote.duration = reverseNote.duration / state.speed
+                        reverseNote.time = Math.abs(reverseNote.time - initialTime) / state.speed
+                        newTrack.addNote(reverseNote)
+                    })
+                } else {
+                    const notes = track.notes.slice()
+                    notes.forEach((note: any) => {
+                        let transposed = note.name
+                        if (state.preservesPitch) {
+                            transposed = functions.transposeNote(note.name, state.pitch)
+                        } else {
+                            transposed = functions.transposeNote(note.name, state.pitch + functions.noteFactor(state.speed))
+                        }
+                        note.name = transposed
+                        note.duration = note.duration / state.speed
+                        note.time = note.time / state.speed
+                        newTrack.addNote(note)
+                    })
+                }
+            })
+            fs.writeFileSync(savePath, Buffer.from(midi.toArray()))
+        } else {
+            let duration = state.duration
+            let start = 0
+            if (state.abloop) {
+                start = state.loopStart
+                duration = state.loopEnd - state.loopStart
+            }
+            const audioBuffer = await render(start, duration)
+            if (path.extname(savePath) === ".mp3") {
+                audioEncoder(audioBuffer.get(), 320, null, async (blob: Blob) => {
+                    const mp3 = await blob.arrayBuffer() as any
+                    fs.writeFileSync(savePath, Buffer.from(mp3, "binary"))
+                })
+            } else {
+                audioEncoder(audioBuffer.get(), null, null, async (blob: Blob) => {
+                    const wav = await blob.arrayBuffer() as any
+                    fs.writeFileSync(savePath, Buffer.from(wav, "binary"))
+                })
+            }
         }
-        const buffer = await render(start, duration)
-        const wav = encodeWAV(buffer)
-        const blob = new Blob([new DataView(wav)], {type: "audio/wav"})
-        state.download = window.URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        document.body.appendChild(a)
-        a.style.display = "none"
-        a.href = state.download
-        a.download = `${functions.decodeEntities(state.songName)}${state.editCode}.wav`
-        a.click()
-        document.body.removeChild(a)
     }
 
     const submit = async (value?: string) => {
@@ -1177,7 +1225,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         } else if (query === "volume") {
             if (hover) {
                 state.volumeHover = true
-                if (state.volume === 0) {
+                if (state.volume === 0 || state.muted) {
                     volumeRef.current!.src = muteHoverIcon
                 } else {
                     if (state.volume <= 0.5) {
@@ -1188,7 +1236,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 }
             } else {
                 state.volumeHover = false
-                if (state.volume === 0) {
+                if (state.volume === 0 || state.muted) {
                     volumeRef.current!.src = muteIcon
                 } else {
                     if (state.volume <= 0.5) {
