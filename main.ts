@@ -1,5 +1,6 @@
 import {app, BrowserWindow, dialog, globalShortcut, ipcMain} from "electron"
 import {autoUpdater} from "electron-updater"
+import * as localShortcut from "electron-shortcuts"
 import Store from "electron-store"
 import path from "path"
 import process from "process"
@@ -8,6 +9,7 @@ import pack from "./package.json"
 import Youtube from "youtube.ts"
 import Soundcloud from "soundcloud.ts"
 import functions from "./structures/functions"
+import fs from "fs"
 
 process.setMaxListeners(0)
 let window: Electron.BrowserWindow | null
@@ -16,6 +18,20 @@ const store = new Store()
 
 const youtube = new Youtube()
 const soundcloud = new Soundcloud()
+
+ipcMain.handle("get-synth-state", () => {
+  return store.get("synth", {})
+})
+
+ipcMain.handle("synth", (event, state: any) => {
+  window?.webContents.send("synth", state)
+  store.set("synth", state)
+})
+
+ipcMain.handle("midi-synth", () => {
+  window?.webContents.send("close-all-dialogs", "synth")
+  window?.webContents.send("show-synth-dialog")
+})
 
 ipcMain.handle("get-theme", () => {
   return store.get("theme", "light")
@@ -74,8 +90,8 @@ ipcMain.handle("audio-effects", () => {
 })
 
 ipcMain.handle("get-previous", async (event, info: any) => {
-  if (info.song.startsWith("file:///")) {
-    const song = info.song.replace("file:///", "")
+  const song = info.song?.replace("file:///", "")
+  if (fs.existsSync(song)) {
     const directory = path.dirname(song)
     const files = await functions.getSortedFiles(directory)
     const index = files.findIndex((f) => f === path.basename(song))
@@ -89,8 +105,8 @@ ipcMain.handle("get-previous", async (event, info: any) => {
 })
 
 ipcMain.handle("get-next", async (event, info: any) => {
-  if (info.song.startsWith("file:///")) {
-    const song = info.song.replace("file:///", "")
+  const song = info.song?.replace("file:///", "")
+  if (fs.existsSync(song)) {
     const directory = path.dirname(song)
     const files = await functions.getSortedFiles(directory)
     const index = files.findIndex((f) => f === path.basename(song))
@@ -109,7 +125,7 @@ ipcMain.handle("get-recent", () => {
 
 ipcMain.handle("update-recent", (event, info: any) => {
   let recent = store.get("recent", []) as any[]
-  if (recent.length > 8) recent.pop()
+  while (recent.length > 80) recent.pop()
   const dupe = functions.findDupe(recent, info)
   if (dupe !== -1) recent.splice(dupe, 1)
   recent.unshift(info)
@@ -230,13 +246,19 @@ if (!singleLock) {
   })
 
   app.on("ready", () => {
-    window = new BrowserWindow({width: 900, height: 650, minWidth: 720, minHeight: 450, frame: false, backgroundColor: "#f53171", center: true, webPreferences: {nodeIntegration: true, contextIsolation: false, enableRemoteModule: true, webSecurity: false}})
+    window = new BrowserWindow({width: 900, height: 630, minWidth: 720, minHeight: 450, frame: false, backgroundColor: "#f53171", center: true, webPreferences: {nodeIntegration: true, contextIsolation: false, enableRemoteModule: true, webSecurity: false}})
     window.loadFile(path.join(__dirname, "index.html"))
     window.removeMenu()
     openFile()
     window.on("closed", () => {
       window = null
     })
+    localShortcut.register("Ctrl+S", () => {
+      window?.webContents.send("trigger-save")
+    }, window, {strict: true})
+    localShortcut.register("Ctrl+O", () => {
+      window?.webContents.send("trigger-open")
+    }, window, {strict: true})
     if (process.env.DEVELOPMENT === "true") {
       globalShortcut.register("Control+Shift+I", () => {
         window?.webContents.toggleDevTools()

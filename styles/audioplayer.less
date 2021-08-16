@@ -51,7 +51,7 @@
     width: 45vw;
     font-size: 2rem;
     font-family: "Skranji", sans-serif;
-    color: #ff2264;
+    color: var(--placeholder-color);
     background-color: transparent;
     border: none;
     &::placeholder {
@@ -322,7 +322,7 @@
     display: flex;
     flex-direction: row;
     background-color: var(--player-color);
-    height: 140px;
+    height: max-content;
     width: 100%;
 }
 
@@ -330,6 +330,7 @@
     display: flex;
     flex-direction: column;
     width: 100%;
+    padding-bottom: 15px;
 }
 
 .player-row {
@@ -350,7 +351,7 @@
 .player-text {
     color: var(--text-color);
     font-family: "Skranji", sans-serif;
-    font-size: 1.5rem;
+    font-size: 2.5vw;
     user-select: text;
     cursor: text;
     span {

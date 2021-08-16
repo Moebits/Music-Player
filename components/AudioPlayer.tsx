@@ -94,6 +94,12 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             const text = clipboard.readText()
             if (text) searchBox.current!.value += text
         }
+        const triggerOpen = () => {
+            upload()
+        }
+        const triggerSave = () => {
+            download()
+        }
         initState()
         ipcRenderer.on("open-file", openFile)
         ipcRenderer.on("invoke-play", invokePlay)
@@ -105,6 +111,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         ipcRenderer.on("highshelf", highshelf)
         ipcRenderer.on("lowshelf", lowshelf)
         ipcRenderer.on("trigger-paste", triggerPaste)
+        ipcRenderer.on("synth", updateSynth)
+        ipcRenderer.on("trigger-open", triggerOpen)
+        ipcRenderer.on("trigger-save", triggerSave)
         return () => {
             ipcRenderer.removeListener("open-file", openFile)
             ipcRenderer.removeListener("invoke-play", invokePlay)
@@ -116,6 +125,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             ipcRenderer.removeListener("highshelf", highshelf)
             ipcRenderer.removeListener("lowshelf", lowshelf)
             ipcRenderer.removeListener("trigger-paste", triggerPaste)
+            ipcRenderer.removeListener("synth", updateSynth)
+            ipcRenderer.removeListener("trigger-open", triggerOpen)
+            ipcRenderer.removeListener("trigger-save", triggerSave)
         }
     }, [])
 
@@ -155,13 +167,21 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         midi: false,
         midiFile: null as unknown as Midi,
         midiDuration: 0,
-        bpm: 0
+        bpm: 0,
+        wave: "square",
+        attack: 0.02,
+        decay: 0.5,
+        sustain: 0.3,
+        release: 0.5,
+        poly: true,
+        portamento: 0
     }
 
     const initialState = {...state}
 
     const initState = async () => {
         const saved = await ipcRenderer.invoke("get-state")
+        const synthSaved = await ipcRenderer.invoke("get-synth-state")
         if (saved.preservesPitch !== undefined) {
             state.preservesPitch = saved.preservesPitch
             speedCheckbox.current!.checked = !state.preservesPitch
@@ -198,6 +218,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 loopImg.current!.src = loopActiveIcon
             }
         }
+        if (synthSaved.wave !== undefined) state.wave = synthSaved.wave
+        if (synthSaved.attack !== undefined) state.attack = synthSaved.attack 
+        if (synthSaved.decay !== undefined) state.decay = synthSaved.decay
+        if (synthSaved.sustain !== undefined) state.sustain = synthSaved.sustain 
+        if (synthSaved.release !== undefined) state.release = synthSaved.release 
+        if (synthSaved.poly !== undefined) state.poly = synthSaved.poly 
+        if (synthSaved.portamento !== undefined) state.portamento = synthSaved.portamento
         updateBarPos()
     }
 
@@ -724,16 +751,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         songCover.current!.src = state.songCover
     }
 
-    const playMIDI = async (applyState?: any, options?: {wave?: any, attack?: number, decay?: number, sustain?: number, release?: number, pitch?: number, poly?: boolean, portamento?: number}) => {
-        if (!options) options = {}
-        if (!options.wave) options.wave = "square"
-        if (!options.attack) options.attack = 0.02
-        if (!options.decay) options.decay = 0.5
-        if (!options.sustain) options.sustain = 0.3
-        if (!options.release) options.release = 0.5
-        if (!options.poly) options.poly = true
-        if (!options.portamento) options.portamento = 0
-        if (!options.pitch) options.pitch = 0
+    
+    const updateSynth = (event: any, newState: any) => {
+        state = {...state, ...newState}
+        if (state.midi) playMIDI()
+    }
+
+    const playMIDI = async (applyState?: any) => {
         const localState = applyState ? applyState.state : state
         const synthArray = applyState ? applyState.synths : synths
         if (!localState.midiFile) return
@@ -741,10 +765,10 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         disposeSynths(synthArray)
         midi.tracks.forEach((track: any) => {
             let synth = null as any
-            if (options?.poly) {
-                synth = new Tone.PolySynth(Tone.Synth, {oscillator: {type: options?.wave}, envelope: {attack: options?.attack, decay: options?.decay, sustain: options?.sustain, release: options?.release}, portamento: options?.portamento, detune: options?.pitch, volume: -6}).sync()
+            if (state.poly) {
+                synth = new Tone.PolySynth(Tone.Synth, {oscillator: {type: state.wave as any}, envelope: {attack: state.attack, decay: state.decay, sustain: state.sustain, release: state.release}, portamento: state.portamento, volume: -6}).sync()
             } else {
-                synth = new Tone.Synth({oscillator: {type: options?.wave}, envelope: {attack: options?.attack, decay: options?.decay, sustain: options?.sustain, release: options?.release}, portamento: options?.portamento, detune: options?.pitch, volume: -6}).sync()
+                synth = new Tone.Synth({oscillator: {type: state.wave as any}, envelope: {attack: state.attack, decay: state.decay, sustain: state.sustain, release: state.release}, portamento: state.portamento, volume: -6}).sync()
             }
             if (!applyState) synth.toDestination()
             synthArray.push(synth)

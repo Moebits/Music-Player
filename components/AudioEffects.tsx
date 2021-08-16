@@ -47,31 +47,31 @@ const AudioEffects: React.FunctionComponent = (props) => {
                 setState((prev) => {
                     return {...prev, reverbMix: value}
                 })
-                ipcRenderer.invoke("reverb", state)
+                ipcRenderer.invoke("reverb", {...state, reverbMix: value})
                 break
             case "reverbDecay":
                 setState((prev) => {
                     return {...prev, reverbDecay: value}
                 })
-                ipcRenderer.invoke("reverb", state)
+                ipcRenderer.invoke("reverb", {...state, reverbDecay: value})
                 break
             case "delayMix":
                 setState((prev) => {
                     return {...prev, delayMix: value}
                 })
-                ipcRenderer.invoke("delay", state)
+                ipcRenderer.invoke("delay", {...state, delayMix: value})
                 break
             case "delayTime":
                 setState((prev) => {
                     return {...prev, delayTime: value}
                 })
-                ipcRenderer.invoke("delay", state)
+                ipcRenderer.invoke("delay", {...state, delayTime: value})
                 break
             case "delayFeedback":
                 setState((prev) => {
                     return {...prev, delayFeedback: value}
                 })
-                ipcRenderer.invoke("delay", state)
+                ipcRenderer.invoke("delay", {...state, delayFeedback: value})
                 break
         }
     }

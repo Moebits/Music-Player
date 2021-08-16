@@ -1,16 +1,36 @@
-import React, {useEffect, useReducer} from "react"
+import React, {useEffect, useReducer, useState} from "react"
 import {ipcRenderer} from "electron"
 import square from "../assets/images/square.png"
+import pageLeftButton from "../assets/icons/page-left.png"
+import pageLeftButtonHover from "../assets/icons/page-left-hover.png"
+import pageRightButton from "../assets/icons/page-right.png"
+import pageRightButtonHover from "../assets/icons/page-right-hover.png"
 import "../styles/recentplays.less"
 
 let recent = [] as any[]
+let pages = [] as any
 
 const RecentPlays: React.FunctionComponent = (props) => {
     const [ignored, forceUpdate] = useReducer(x => x + 1, 0)
+    const [pageIndex, setPageIndex] = useState(0)
+    const [pageLeftHover, setPageLeftHover] = useState(false)
+    const [pageRightHover, setPageRightHover] = useState(false)
 
     useEffect(() => {
         const updateRecentGUI = async () => {
             recent = await ipcRenderer.invoke("get-recent")
+            let newPages = []
+            let counter = 0;
+            while (counter < recent.length - 1) {
+                let newPage = [] as any
+                for (let i = 0; i < 8; i++) {
+                    if (!recent[counter]) break
+                    newPage.push(recent[counter])
+                    counter++
+                }
+                if (newPage.length) newPages.push(newPage)
+            }
+            pages = newPages
             forceUpdate()
         }
         updateRecentGUI()
@@ -33,17 +53,17 @@ const RecentPlays: React.FunctionComponent = (props) => {
         let row1 = []
         let row2 = []
         for (let i = 0; i < 4; i++) {
-            if (!recent[i]) {
+            if (!pages[pageIndex]?.[i]) {
                 row1.push(<img className="recent-square" src={square}/>)
             } else {
-                row1.push(<img className={`${checkYT(recent[i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(recent[i])} src={recent[i].songCover}/>)
+                row1.push(<img className={`${checkYT(pages[pageIndex][i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(pages[pageIndex][i])} src={pages[pageIndex][i].songCover}/>)
             }
         }
         for (let i = 4; i < 8; i++) {
-            if (!recent[i]) {
+            if (!pages[pageIndex]?.[i]) {
                 row2.push(<img className="recent-square" src={square}/>)
             } else {
-                row2.push(<img className={`${checkYT(recent[i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(recent[i])} src={recent[i].songCover}/>)
+                row2.push(<img className={`${checkYT(pages[pageIndex][i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(pages[pageIndex][i])} src={pages[pageIndex][i].songCover}/>)
             }
         }
         return (
@@ -54,10 +74,26 @@ const RecentPlays: React.FunctionComponent = (props) => {
         )
     }
 
+    const previousPage = () => {
+        if (pages[pageIndex - 1]) {
+            setPageIndex((prev) => prev - 1)
+        }
+    }
+
+    const nextPage = () => {
+        if (pages[pageIndex + 1]) {
+            setPageIndex((prev) => prev + 1)
+        }
+    }
+
     return (
         <section className="recent-plays">
             <div className="recent-title-container">
                 <p className="recent-title">Recent Plays</p>
+                <div className="recent-page-buttons">
+                    <img src={pageLeftHover ? pageLeftButtonHover : pageLeftButton} className="recent-page-button" onClick={previousPage} onMouseEnter={() => setPageLeftHover(true)} onMouseLeave={() => setPageLeftHover(false)}/>
+                    <img src={pageRightHover ? pageRightButtonHover : pageRightButton} className="recent-page-button" onClick={nextPage} onMouseEnter={() => setPageRightHover(true)} onMouseLeave={() => setPageRightHover(false)}/>
+                </div>
             </div>
             {generateJSX()}
         </section>

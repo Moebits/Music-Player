@@ -51,37 +51,37 @@ const AudioFilters: React.FunctionComponent = (props) => {
                 setState((prev) => {
                     return {...prev, lowpassCutoff: value}
                 })
-                ipcRenderer.invoke("lowpass", state)
+                ipcRenderer.invoke("lowpass", {...state, lowpassCutoff: value})
                 break
             case "highpassCutoff":
                 setState((prev) => {
                     return {...prev, highpassCutoff: value}
                 })
-                ipcRenderer.invoke("highpass", state)
+                ipcRenderer.invoke("highpass", {...state, highpassCutoff: value})
                 break
             case "highshelfCutoff":
                 setState((prev) => {
                     return {...prev, highshelfCutoff: value}
                 })
-                ipcRenderer.invoke("highshelf", state)
+                ipcRenderer.invoke("highshelf", {...state, highshelfCutoff: value})
                 break
             case "highshelfGain":
                 setState((prev) => {
                     return {...prev, highshelfGain: value}
                 })
-                ipcRenderer.invoke("highshelf", state)
+                ipcRenderer.invoke("highshelf", {...state, highshelfGain: value})
                 break
             case "lowshelfCutoff":
                 setState((prev) => {
                     return {...prev, lowshelfCutoff: value}
                 })
-                ipcRenderer.invoke("lowshelf", state)
+                ipcRenderer.invoke("lowshelf", {...state, lowshelfCutoff: value})
                 break
             case "lowshelfGain":
                 setState((prev) => {
                     return {...prev, lowshelfGain: value}
                 })
-                ipcRenderer.invoke("lowshelf", state)
+                ipcRenderer.invoke("lowshelf", {...state, lowshelfGain: value})
                 break
         }
     }

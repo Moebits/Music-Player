@@ -23,6 +23,8 @@ import darkButton from "../assets/icons/dark.png"
 import darkButtonHover from "../assets/icons/dark-hover.png"
 import lightButton from "../assets/icons/light.png"
 import lightButtonHover from "../assets/icons/light-hover.png"
+import synthButton from "../assets/icons/synth.png"
+import synthButtonHover from "../assets/icons/synth-hover.png"
 import pack from "../package.json"
 import path from "path"
 import "../styles/titlebar.less"
@@ -37,6 +39,7 @@ const TitleBar: React.FunctionComponent = (props) => {
     const [hoverFX, setHoverFX] = useState(false)
     const [hoverEQ, setHoverEQ] = useState(false)
     const [hoverTheme, setHoverTheme] = useState(false)
+    const [hoverSynth, setHoverSynth] = useState(false)
     const [theme, setTheme] = useState("dark")
     const [ignored, forceUpdate] = useReducer(x => x + 1, 0)
     const playRef = useRef(null) as any
@@ -104,6 +107,10 @@ const TitleBar: React.FunctionComponent = (props) => {
         ipcRenderer.invoke("audio-filters")
     }
 
+    const synth = () => {
+        ipcRenderer.invoke("midi-synth")
+    }
+
     const changeTheme = (value?: string) => {
         let condition = value !== undefined ? value === "dark" : theme === "light"
         if (condition) {
@@ -122,6 +129,8 @@ const TitleBar: React.FunctionComponent = (props) => {
             document.documentElement.style.setProperty("--version-reject", "#090409")
             document.documentElement.style.setProperty("--version-accept-text", "#ff4492")
             document.documentElement.style.setProperty("--version-reject-text", "#ff3370")
+            document.documentElement.style.setProperty("--synth-color", "#090409")
+            document.documentElement.style.setProperty("--synth-text", "#ff3068")
             setTheme("dark")
             ipcRenderer.invoke("save-theme", "dark")
         } else {
@@ -140,6 +149,8 @@ const TitleBar: React.FunctionComponent = (props) => {
             document.documentElement.style.setProperty("--version-reject", "#ff3370")
             document.documentElement.style.setProperty("--version-accept-text", "black")
             document.documentElement.style.setProperty("--version-reject-text", "black")
+            document.documentElement.style.setProperty("--synth-color", "#ff3068")
+            document.documentElement.style.setProperty("--synth-text", "black")
             setTheme("light")
             ipcRenderer.invoke("save-theme", "light")
         }
@@ -154,6 +165,7 @@ const TitleBar: React.FunctionComponent = (props) => {
                     </div>
                     <div className="title-bar-buttons">
                         <img src={hoverTheme ? (theme === "light" ? darkButtonHover : lightButtonHover) : (theme === "light" ? darkButton : lightButton)} height="20" width="20" className="title-bar-button theme-button" onClick={() => changeTheme()} onMouseEnter={() => setHoverTheme(true)} onMouseLeave={() => setHoverTheme(false)}/>
+                        <img src={hoverSynth ? synthButtonHover : synthButton} height="20" width="20" className="title-bar-button synth-button" onClick={synth} onMouseEnter={() => setHoverSynth(true)} onMouseLeave={() => setHoverSynth(false)}/>
                         <img src={hoverEQ ? eqButtonHover : eqButton} height="20" width="20" className="title-bar-button eq-button" onClick={eq} onMouseEnter={() => setHoverEQ(true)} onMouseLeave={() => setHoverEQ(false)}/>
                         <img src={hoverFX ? fxButtonHover : fxButton} height="20" width="20" className="title-bar-button fx-button" onClick={fx} onMouseEnter={() => setHoverFX(true)} onMouseLeave={() => setHoverFX(false)}/>
                         <img ref={playRef} src={hoverPlay ? (getPlayState() === "started" ? pauseTinyHover : playTinyHover) : (getPlayState() === "started" ? pauseTiny : playTiny)} height="20" width="20" className="title-bar-button play-title-button" onClick={play} onMouseEnter={() => setHoverPlay(true)} onMouseLeave={() => setHoverPlay(false)}/>

@@ -18,6 +18,11 @@ It's basically the GUI version of my [Music Player Web](https://github.com/Tenpi
 - Play previous and next tracks (from your file system)
 - Support for playing MIDI files with a synthesizer
 
+### Keyboard Shortcuts
+- Space: Play/Pause
+- Ctrl O: Upload file
+- Ctrl S: Download file
+
 ### Installation
 
 Download the latest exe installer from the [releases](https://github.com/Tenpi/Music-Player/releases) tab. Updates can be installed automatically.
