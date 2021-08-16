@@ -1,22 +1,22 @@
 ## Music Player
 
-<img src="assets/images/readme.png">
+<img src="assets/images/readme-light.png">
 
 This is a music player that can apply cool effects such as reversing, time stretching, and pitch shifting in real-time.
 It's basically the GUI version of my [Music Player Web](https://github.com/Tenpi/Music-Player-Web) site.
 
 ### Features:
-- Play, pause, loop and seek audio
+- Play audio (MP3, WAV) and MIDI files
 - Adjust the volume of the audio
 - Reverse audio in real-time
 - Time stretching in real-time (can either preserve or affect the pitch)
 - Pitch shifting in real-time (only if time-stretch is set to not affect the pitch)
 - Looping from point A to point B
-- Play local files, YouTube videos, and Soundcloud tracks
-- Render and download audio with effects
+- Support for local files, YouTube videos, and Soundcloud tracks
+- Render and download audio/midi with effects
 - Keeps a record of recent plays
 - Play previous and next tracks (from your file system)
-- Support for playing MIDI files with a synthesizer
+- Customize the controls of the MIDI synthesizer
 
 ### Keyboard Shortcuts
 - Space: Play/Pause
