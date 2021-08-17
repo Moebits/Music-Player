@@ -33,4 +33,5 @@ Open an issue on my GitHub repository.
 
 ### Also See
 
-- [Music Player Web](https://github.com/Tenpi/Music-Player-Web)
+- [musicplayer.moe](https://github.com/Tenpi/musicplayer.moe)
+- [Photo Viewer](https://github.com/Tenpi/Photo-Viewer)
