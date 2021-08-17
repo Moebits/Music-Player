@@ -1,4 +1,3 @@
-
 import playTiny from "../assets/icons/playTiny.png"
 import playTinyHover from "../assets/icons/playTiny-hover.png"
 import pauseTiny from "../assets/icons/pauseTiny.png"
