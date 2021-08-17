@@ -962,6 +962,26 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             effectNodes.push(del)
             editCode += "-delay"
         }
+        if (localState.lowpassCutoff !== 100) {
+            const low = await lowpass(null, localState, true) as Tone.BiquadFilter
+            effectNodes.push(low)
+            editCode += "-lowpass"
+        }
+        if (localState.highpassCutoff !== 0) {
+            const high = await highpass(null, localState, true) as Tone.BiquadFilter
+            effectNodes.push(high)
+            editCode += "-highpass"
+        }
+        if (localState.highshelfGain !== 0) {
+            const high = await highshelf(null, localState, true) as Tone.BiquadFilter
+            effectNodes.push(high)
+            editCode += "-highshelf"
+        }
+        if (localState.lowshelfGain !== 0) {
+            const low = await lowshelf(null, localState, true) as Tone.BiquadFilter
+            effectNodes.push(low)
+            editCode += "-lowshelf"
+        }
         state.editCode = editCode
         const current = localState.preservesPitch ? grain : player
         return {current, effectNodes}
@@ -994,23 +1014,43 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             effectNodes.push(del)
             editCode += "-delay"
         }
+        if (localState.lowpassCutoff !== 100) {
+            const low = await lowpass(null, localState, true) as Tone.BiquadFilter
+            effectNodes.push(low)
+            editCode += "-lowpass"
+        }
+        if (localState.highpassCutoff !== 0) {
+            const high = await highpass(null, localState, true) as Tone.BiquadFilter
+            effectNodes.push(high)
+            editCode += "-highpass"
+        }
+        if (localState.highshelfGain !== 0) {
+            const high = await highshelf(null, localState, true) as Tone.BiquadFilter
+            effectNodes.push(high)
+            editCode += "-highshelf"
+        }
+        if (localState.lowshelfGain !== 0) {
+            const low = await lowshelf(null, localState, true) as Tone.BiquadFilter
+            effectNodes.push(low)
+            editCode += "-lowshelf"
+        }
         state.editCode = editCode
         return {synthArray: synths, effectNodes}
     }
 
      /** Renders the same as online */
      const render = async (start: number, duration: number) => {
-        return Tone.Offline(async ({transport}) => {
+        return Tone.Offline(async ({transport, destination}) => {
             let grain = new Tone.GrainPlayer().sync()
             let player = new Tone.Player().sync()
             let synths = [] as Tone.PolySynth[]
             grain.grainSize = 0.1
             if (state.midi) {
                 const {synthArray, effectNodes} = await applyMIDIState(state, synths)
-                synthArray.forEach((s) => s.chain(...effectNodes).toDestination())
+                synthArray.forEach((s) => s.chain(...[...effectNodes, destination]))
             } else {
                 const {current, effectNodes} = await applyState(state, grain, player)
-                current.chain(...effectNodes).toDestination().start()
+                current.chain(...[...effectNodes, destination]).start()
             }
             transport.start(start)
         }, duration, 2, 44100)
