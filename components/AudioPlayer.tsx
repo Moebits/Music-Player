@@ -105,6 +105,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         ipcRenderer.on("invoke-play", invokePlay)
         ipcRenderer.on("change-play-state", changePlayState)
         ipcRenderer.on("reverb", reverb)
+        ipcRenderer.on("phaser", phaser)
         ipcRenderer.on("delay", delay)
         ipcRenderer.on("lowpass", lowpass)
         ipcRenderer.on("highpass", highpass)
@@ -119,6 +120,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             ipcRenderer.removeListener("invoke-play", invokePlay)
             ipcRenderer.removeListener("change-play-state", changePlayState)
             ipcRenderer.removeListener("reverb", reverb)
+            ipcRenderer.removeListener("phaser", phaser)
             ipcRenderer.removeListener("delay", delay)
             ipcRenderer.removeListener("lowpass", lowpass)
             ipcRenderer.removeListener("highpass", highpass)
@@ -158,6 +160,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         delayMix: 0,
         delayTime: 0.25,
         delayFeedback: 0.5,
+        phaserMix: 0,
+        phaserFrequency: 1,
         lowpassCutoff: 100,
         highpassCutoff: 0,
         highshelfCutoff: 70,
@@ -623,6 +627,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 }
                 if (Tone.Transport.seconds === Math.round(state.duration) - 1) Tone.Transport.seconds = Math.round(state.duration)
             } else {
+                if (state.midi && Math.floor(Tone.Transport.seconds) === 0) playMIDI()
                 if (Tone.Transport.seconds > state.duration) {
                     Tone.Transport.seconds = 0
                     if (state.midi) playMIDI()
@@ -1333,6 +1338,18 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             const delay = new Tone.PingPongDelay({wet: state.delayMix, delayTime: state.delayTime, feedback: state.delayFeedback})
             if (noApply) return delay
             pushEffect("delay", delay)
+            applyEffects()
+        }
+    }
+
+    const phaser = async (event: any, effect?: any, noApply?: boolean) => {
+        state = {...state, ...effect}
+        if (state.phaserMix === 0) {
+            removeEffect("phaser")
+        } else {
+            const phaser = new Tone.Phaser({wet: state.phaserMix, frequency: state.phaserFrequency})
+            if (noApply) return phaser
+            pushEffect("phaser", phaser)
             applyEffects()
         }
     }

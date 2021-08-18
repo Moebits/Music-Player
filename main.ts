@@ -76,6 +76,10 @@ ipcMain.handle("audio-filters", () => {
   window?.webContents.send("show-filters-dialog")
 })
 
+ipcMain.handle("phaser", (event, state: any) => {
+  window?.webContents.send("phaser", state)
+})
+
 ipcMain.handle("delay", (event, state: any) => {
   window?.webContents.send("delay", state)
 })

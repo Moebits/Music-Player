@@ -12,7 +12,9 @@ const AudioEffects: React.FunctionComponent = (props) => {
         reverbDecay: 1.5,
         delayMix: 0,
         delayTime: 0.25,
-        delayFeedback: 0.3
+        delayFeedback: 0.3,
+        phaserMix: 0,
+        phaserFrequency: 1
     }
 
     const [state, setState] = useState(initialState)
@@ -21,6 +23,7 @@ const AudioEffects: React.FunctionComponent = (props) => {
         setState(initialState)
         ipcRenderer.invoke("reverb", initialState)
         ipcRenderer.invoke("delay", initialState)
+        ipcRenderer.invoke("phaser", initialState)
     }
 
     useEffect(() => {
@@ -73,6 +76,18 @@ const AudioEffects: React.FunctionComponent = (props) => {
                 })
                 ipcRenderer.invoke("delay", {...state, delayFeedback: value})
                 break
+            case "phaserMix":
+                setState((prev) => {
+                    return {...prev, phaserMix: value}
+                })
+                ipcRenderer.invoke("phaser", {...state, phaserMix: value})
+                break
+            case "phaserFrequency":
+                setState((prev) => {
+                    return {...prev, phaserFrequency: value}
+                })
+                ipcRenderer.invoke("phaser", {...state, phaserFrequency: value})
+                break
         }
     }
 
@@ -108,6 +123,14 @@ const AudioEffects: React.FunctionComponent = (props) => {
                             <div className="effects-row">
                                 <p className="effects-text">Delay Feedback: </p>
                                 <Slider className="fx-slider" onChange={(value) => {changeState("delayFeedback", value)}} min={0.1} max={1} step={0.1} value={state.delayFeedback}/>
+                            </div>
+                            <div className="effects-row">
+                                <p className="effects-text">Phaser Mix: </p>
+                                <Slider className="fx-slider" onChange={(value) => {changeState("phaserMix", value)}} min={0} max={1} step={0.1} value={state.phaserMix}/>
+                            </div>
+                            <div className="effects-row">
+                                <p className="effects-text">Phaser Frequency: </p>
+                                <Slider className="fx-slider" onChange={(value) => {changeState("phaserFrequency", value)}} min={1} max={10} step={1} value={state.phaserFrequency}/>
                             </div>
                         </div>
                     </div>
