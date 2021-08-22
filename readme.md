@@ -35,3 +35,4 @@ Open an issue on my GitHub repository.
 
 - [musicplayer.moe](https://github.com/Tenpi/musicplayer.moe)
 - [Photo Viewer](https://github.com/Tenpi/Photo-Viewer)
+- [Video Player](https://github.com/Tenpi/Video-Player)
