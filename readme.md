@@ -20,6 +20,11 @@ It's basically the GUI version of my [Music Player Web](https://github.com/Tenpi
 
 ### Keyboard Shortcuts
 - Space: Play/Pause
+- Left Arrow: Rewind
+- Right Arrow: Fast forward
+- Up Arrow: Increase volume
+- Down Arrow: Decrease volume
+- Mouse Wheel: Increase/decrease volume
 - Ctrl O: Upload file
 - Ctrl S: Download file
 

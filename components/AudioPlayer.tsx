@@ -178,7 +178,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         sustain: 0.3,
         release: 0.5,
         poly: true,
-        portamento: 0
+        portamento: 0,
+        resizeFlag: false,
+        mouseFlag: false
     }
 
     const initialState = {...state}
@@ -394,6 +396,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const volume = (value: number) => {
+        if (value > 1) value = 1
+        if (value < 0) value = 0
         state.volume = value
         Tone.Destination.volume.value = functions.logSlider(state.volume)
         if (state.volume === 0) {
@@ -421,6 +425,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 }
             }
         }
+        updateVolumePos(state.volume)
     }
 
     const speed = async (value?: number | string, applyState?: any) => {
@@ -689,6 +694,23 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 event.preventDefault()
                 submit()
             }
+            /* Arrow Key Shortcuts */
+            if (event.key === "ArrowLeft") {
+                event.preventDefault()
+                rewind(1)
+            }
+            if (event.key === "ArrowRight") {
+                event.preventDefault()
+                fastforward(1)
+            }
+            if (event.key === "ArrowUp") {
+                event.preventDefault()
+                volume(state.volume + 0.05)
+            }
+            if (event.key === "ArrowDown") {
+                event.preventDefault()
+                volume(state.volume - 0.05)
+            }
         }
         window.onkeyup = (event: KeyboardEvent) => {
             if (!event.shiftKey) {
@@ -698,6 +720,26 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 pitchBar.current!.step = "12"
             }
         }
+        window.onwheel = (event: WheelEvent) => {
+            event.preventDefault()
+            const delta = Math.sign(event.deltaY)
+            volume(state.volume - delta * 0.05)
+        }
+        window.onmousedown = () => {
+            state.mouseFlag = true
+        }
+        window.onmouseup = () => {
+            state.mouseFlag = false
+            state.resizeFlag = false
+        }
+        window.onmousemove = (event: MouseEvent) => {
+            if (state.resizeFlag && state.mouseFlag) {
+                const element = document.querySelector(".player") as HTMLElement
+                let newHeight = window.innerHeight - event.pageY
+                if (newHeight < 100) newHeight = 100
+                element.style.height = `${newHeight}px`
+            }
+        }
         return window.clearInterval()
     }, [])
 
@@ -705,11 +747,15 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         state.dragging = false
         let percent = value / 100     
         if (state.reverse === true) {
+            updateSliderPos((percent) * 100)
+            secondsProgress.current!.innerText = functions.formatSeconds(state.duration - Tone.Transport.seconds)
             let value = (1-percent) * state.duration
             if (value < 0) value = 0
             if (value > state.duration - 1) value = state.duration - 1
             Tone.Transport.seconds = value
         } else {
+            updateSliderPos(percent * 100)
+            secondsProgress.current!.innerText = functions.formatSeconds(Tone.Transport.seconds)
             let value = percent * state.duration
             if (value < 0) value = 0
             if (value > state.duration - 1) value = state.duration - 1
@@ -717,6 +763,20 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
         if (state.midi) playMIDI()
         if (Tone.Transport.state === "paused" || Tone.Transport.state === "stopped") play()
+    }
+
+    const rewind = (value: number) => {
+        const current = state.reverse ? state.duration - Tone.Transport.seconds : Tone.Transport.seconds
+        const seconds = current - value
+        const percent = seconds / state.duration * 100
+        seek(percent)
+    }
+
+    const fastforward = (value: number) => {
+        const current = state.reverse ? state.duration - Tone.Transport.seconds : Tone.Transport.seconds
+        const seconds = current + value
+        const percent = seconds / state.duration * 100
+        seek(percent)
     }
 
     const updateProgressText = (value: number) => {
@@ -1402,6 +1462,15 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
     }
 
+    const resizeOn = () => {
+        document.documentElement.style.cursor = "ns-resize"
+        state.resizeFlag = true
+    }
+
+    const resizeOff = () => {
+        document.documentElement.style.cursor = "default"
+    }
+
     return (
         <main className="audio-player">
             {/* Top Buttons */}
@@ -1419,6 +1488,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
 
             {/* Player */}
             <section className="player">
+                <div className="player-resize" onMouseEnter={() => resizeOn()} onMouseLeave={() => resizeOff()}></div>
                 <img ref={songCover} className="player-img" src={state.songCover}/>
                 <div className="player-container">
                     <div className="player-row">
