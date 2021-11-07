@@ -241,14 +241,13 @@ const openFile = (argv?: any) => {
   if (process.platform !== "darwin") {
     let file = argv ? argv[2] : process.argv[1]
     window?.webContents.send("open-file", file)
-  } else {
-    window?.webContents.send("open-file", filePath)
   }
 }
 
 app.on("open-file", (event, file) => {
   filePath = file
   event.preventDefault()
+  window?.webContents.send("open-file", file)
 })
 
 const singleLock = app.requestSingleInstanceLock()
