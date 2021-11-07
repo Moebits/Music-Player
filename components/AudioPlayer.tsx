@@ -678,7 +678,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
 
         /* Precision on shift click */
-        window.onkeydown = (event: KeyboardEvent) => {
+        window.addEventListener("keydown", (event: KeyboardEvent) => {
             if (event.shiftKey) {
                 event.preventDefault()
                 speedBar.current!.step = "0.01"
@@ -711,7 +711,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 event.preventDefault()
                 volume(state.volume - 0.05)
             }
-        }
+        }, {passive: false})
         window.onkeyup = (event: KeyboardEvent) => {
             if (!event.shiftKey) {
                 if (Number(speedBar.current!.value) % 0.5 !== 0) speedBar.current!.value = String(functions.round(Number(speedBar.current!.value), 0.5))
@@ -720,11 +720,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 pitchBar.current!.step = "12"
             }
         }
-        window.onwheel = (event: WheelEvent) => {
+        window.addEventListener("wheel", (event: WheelEvent) => {
             event.preventDefault()
             const delta = Math.sign(event.deltaY)
             volume(state.volume - delta * 0.05)
-        }
+        }, {passive: false})
         window.onmousedown = () => {
             state.mouseFlag = true
         }

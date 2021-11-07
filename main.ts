@@ -11,10 +11,12 @@ import Soundcloud from "soundcloud.ts"
 import functions from "./structures/functions"
 import fs from "fs"
 
+require("@electron/remote/main").initialize()
 process.setMaxListeners(0)
 let window: Electron.BrowserWindow | null
 autoUpdater.autoDownload = false
 const store = new Store()
+let filePath = ""
 
 const youtube = new Youtube()
 const soundcloud = new Soundcloud()
@@ -228,13 +230,26 @@ ipcMain.handle("check-for-updates", async (event, startup: boolean) => {
 })
 
 ipcMain.handle("get-opened-file", () => {
-  return process.argv[1]
+  if (process.platform !== "darwin") {
+    return process.argv[1]
+  } else {
+    return filePath
+  }
 })
 
 const openFile = (argv?: any) => {
-  let file = argv ? argv[2] : process.argv[1]
-  window?.webContents.send("open-file", file)
+  if (process.platform !== "darwin") {
+    let file = argv ? argv[2] : process.argv[1]
+    window?.webContents.send("open-file", file)
+  } else {
+    window?.webContents.send("open-file", filePath)
+  }
 }
+
+app.on("open-file", (event, file) => {
+  filePath = file
+  event.preventDefault()
+})
 
 const singleLock = app.requestSingleInstanceLock()
 
@@ -253,6 +268,7 @@ if (!singleLock) {
     window = new BrowserWindow({width: 900, height: 630, minWidth: 720, minHeight: 450, frame: false, backgroundColor: "#f53171", center: true, webPreferences: {nodeIntegration: true, contextIsolation: false, enableRemoteModule: true, webSecurity: false}})
     window.loadFile(path.join(__dirname, "index.html"))
     window.removeMenu()
+    require("@electron/remote/main").enable(window.webContents)
     openFile()
     window.on("closed", () => {
       window = null
@@ -263,10 +279,10 @@ if (!singleLock) {
     localShortcut.register("Ctrl+O", () => {
       window?.webContents.send("trigger-open")
     }, window, {strict: true})
+    globalShortcut.register("Control+Shift+I", () => {
+      window?.webContents.toggleDevTools()
+    })
     if (process.env.DEVELOPMENT === "true") {
-      globalShortcut.register("Control+Shift+I", () => {
-        window?.webContents.toggleDevTools()
-      })
     }
   })
 }
