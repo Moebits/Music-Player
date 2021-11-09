@@ -134,6 +134,7 @@
     "react": "^17.0.1",
     "react-bootstrap": "^1.4.3",
     "react-dom": "^17.0.1",
+    "react-dropzone": "^11.4.2",
     "soundcloud.ts": "^0.4.1",
     "tone": "^14.7.39",
     "youtube.ts": "^0.2.2"

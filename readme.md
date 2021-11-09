@@ -27,6 +27,7 @@ It's basically the GUI version of my [Music Player Web](https://github.com/Tenpi
 - Mouse Wheel: Increase/decrease volume
 - Ctrl O: Upload file
 - Ctrl S: Download file
+- Drag and drop: Upload file
 
 ### Installation
 
