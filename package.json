@@ -1,6 +1,6 @@
 {
   "name": "music-player",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A music player with real-time pitch shifting, reversing, and time stretching",
   "main": "dist/main.js",
   "scripts": {
@@ -32,7 +32,7 @@
     "mac": {
       "target": {
         "target": "dmg",
-        "arch": "arm64"
+        "arch": "x64"
       },
       "category": "public.app-category.music"
     },
@@ -105,7 +105,7 @@
     "cross-env": "^7.0.3",
     "css-loader": "^5.0.1",
     "del-cli": "^3.0.1",
-    "electron": "^15.3.0",
+    "electron": "^14.0.0",
     "electron-builder": "^22.13.1",
     "file-loader": "^6.2.0",
     "fork-ts-checker-webpack-plugin": "^6.1.0",
