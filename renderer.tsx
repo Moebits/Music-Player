@@ -8,11 +8,21 @@ import AudioEffects from "./components/AudioEffects"
 import AudioFilters from "./components/AudioFilters"
 import MIDISynth from "./components/MIDISynth"
 import ContextMenu from "./components/ContextMenu"
+import {ipcRenderer} from "electron"
 import "./index.less"
 
 const App = () => {
+  const onDrop = (event: React.DragEvent) => {
+      console.log(event)
+      const file = event.dataTransfer?.files[0]
+      if (file) ipcRenderer.invoke("upload-file", file.path)
+  }
+  const onDragOver = (event: React.DragEvent) => {
+    event.stopPropagation()
+    event.preventDefault()
+  }
   return (
-    <main className="app">
+    <main className="app" onDrop={onDrop} onDragOver={onDragOver}>
       <TitleBar/>
       <ContextMenu/>
       <VersionDialog/>

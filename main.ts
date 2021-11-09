@@ -229,6 +229,10 @@ ipcMain.handle("check-for-updates", async (event, startup: boolean) => {
   }
 })
 
+ipcMain.handle("upload-file", (event, file) => {
+  window?.webContents.send("open-file", file)
+})
+
 ipcMain.handle("get-opened-file", () => {
   if (process.platform !== "darwin") {
     return process.argv[1]

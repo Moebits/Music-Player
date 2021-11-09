@@ -44,7 +44,6 @@ import RecentPlays from "./RecentPlays"
 import silence from "../assets/silence.mp3"
 import audioEncoder from "audio-encoder"
 import fs from "fs"
-import {useDropzone} from "react-dropzone"
 import "../styles/audioplayer.less"
 
 const AudioPlayer: React.FunctionComponent = (props) => {
@@ -1472,17 +1471,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         document.documentElement.style.cursor = "default"
     }
 
-    const onDrop = (files: any) => {
-        files = files.map((f: any) => f.path)
-        if (files[0]) {
-            upload(files[0])
-        }
+    const resetResize = () => {
+        const element = document.querySelector(".player") as HTMLElement
+        element.style.height = `150px`
     }
 
-    const {getRootProps} = useDropzone({onDrop})
-
     return (
-        <main className="audio-player" {...getRootProps()}>
+        <main className="audio-player">
             {/* Top Buttons */}
             <section className="player-top-buttons">
                 <button onClick={() => upload()} className="upload-button"><span>Upload</span></button>
@@ -1497,7 +1492,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             <RecentPlays/>
 
             {/* Player */}
-            <section className="player">
+            <section className="player" onDoubleClick={resetResize}>
                 <div className="player-resize" onMouseEnter={() => resizeOn()} onMouseLeave={() => resizeOff()}></div>
                 <img ref={songCover} className="player-img" src={state.songCover}/>
                 <div className="player-container">
