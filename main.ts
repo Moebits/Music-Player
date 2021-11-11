@@ -1,4 +1,4 @@
-import {app, BrowserWindow, dialog, globalShortcut, ipcMain} from "electron"
+import {app, BrowserWindow, dialog, globalShortcut, ipcMain, shell} from "electron"
 import {autoUpdater} from "electron-updater"
 import * as localShortcut from "electron-shortcuts"
 import Store from "electron-store"
@@ -214,8 +214,15 @@ ipcMain.handle("select-file", async () => {
 })
 
 ipcMain.handle("install-update", async (event) => {
-  await autoUpdater.downloadUpdate()
-  autoUpdater.quitAndInstall()
+  if (process.platform === "darwin") {
+    const update = await autoUpdater.checkForUpdates()
+    const url = `${pack.repository.url}/releases/download/v${update.updateInfo.version}/${update.updateInfo.files[0].url}`
+    await shell.openExternal(url)
+    app.quit()
+  } else {
+    await autoUpdater.downloadUpdate()
+    autoUpdater.quitAndInstall()
+  }
 })
 
 ipcMain.handle("check-for-updates", async (event, startup: boolean) => {
