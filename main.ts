@@ -173,6 +173,16 @@ ipcMain.handle("get-art", async (event, url: string) => {
   return picture
 })
 
+ipcMain.handle("paste-loop", async (event) => {
+  window?.webContents.send("paste-loop")
+})
+
+
+ipcMain.handle("copy-loop", async (event) => {
+  window?.webContents.send("copy-loop")
+})
+
+
 ipcMain.handle("trigger-paste", async (event) => {
   window?.webContents.send("trigger-paste")
 })

@@ -94,6 +94,17 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             const text = clipboard.readText()
             if (text) searchBox.current!.value += text
         }
+        const copyLoop = () => {
+            if (state.abloop && state.loopEnd) {
+                state.savedLoop[0] = state.loopStart
+                state.savedLoop[1] = state.loopEnd
+            }
+        }
+        const pasteLoop = () => {
+            if (!state.abloop) toggleAB(true)
+            abloop(state.savedLoop)
+            updateABSliderPos(state.savedLoop)
+        }
         const triggerOpen = () => {
             upload()
         }
@@ -112,6 +123,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         ipcRenderer.on("highshelf", highshelf)
         ipcRenderer.on("lowshelf", lowshelf)
         ipcRenderer.on("trigger-paste", triggerPaste)
+        ipcRenderer.on("copy-loop", copyLoop)
+        ipcRenderer.on("paste-loop", pasteLoop)
         ipcRenderer.on("synth", updateSynth)
         ipcRenderer.on("trigger-open", triggerOpen)
         ipcRenderer.on("trigger-save", triggerSave)
@@ -127,6 +140,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             ipcRenderer.removeListener("highshelf", highshelf)
             ipcRenderer.removeListener("lowshelf", lowshelf)
             ipcRenderer.removeListener("trigger-paste", triggerPaste)
+            ipcRenderer.removeListener("copy-loop", copyLoop)
+            ipcRenderer.removeListener("paste-loop", pasteLoop)
             ipcRenderer.removeListener("synth", updateSynth)
             ipcRenderer.removeListener("trigger-open", triggerOpen)
             ipcRenderer.removeListener("trigger-save", triggerSave)
@@ -180,7 +195,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         poly: true,
         portamento: 0,
         resizeFlag: false,
-        mouseFlag: false
+        mouseFlag: false,
+        savedLoop: [0, 1000]
     }
 
     const initialState = {...state}
@@ -492,6 +508,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const updateABSliderPos = (value: number[]) => {
+        value = value.map((v) => v / 10)
         abSlider.current.sliderRef.childNodes[1].style = `left: ${value[0]}%; right: auto; width: ${value[1] - value[0]}%;`
         abSlider.current.sliderRef.childNodes[3].ariaValueNow = `${value[0]}`
         abSlider.current.sliderRef.childNodes[3].style = `left: ${value[0]}%; right: auto; transform: translateX(-50%);`
@@ -516,7 +533,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         grain.reverse = state.reverse
         player.reverse = state.reverse
         Tone.Transport.loop = state.loop
-        updateABSliderPos([0, 100])
+        updateABSliderPos([0, 1000])
         abSlider.current.sliderRef.style.display = "none";
         (document.querySelector(".progress-slider > .rc-slider-track") as any).style.backgroundColor = "#991fbe";
         (document.querySelector(".progress-slider > .rc-slider-rail") as any).style.backgroundColor = "black"
@@ -780,6 +797,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const updateProgressText = (value: number) => {
+        value = value / 10
         let percent = value / 100
         if (state.reverse === true) {
             secondsProgress.current!.innerText = functions.formatSeconds(state.duration - ((1-percent) * state.duration))
@@ -944,11 +962,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (!state.abloop) return
         let percent = duration / 100.0
         if (state.reverse) {
-            Tone.Transport.loopStart = (100 - state.loopEnd) * percent
-            Tone.Transport.loopEnd = (100 - state.loopStart) * percent
+            Tone.Transport.loopStart = (100 - (state.loopEnd / 10)) * percent
+            Tone.Transport.loopEnd = (100 - (state.loopStart / 10)) * percent
         } else {
-            Tone.Transport.loopStart = state.loopStart * percent
-            Tone.Transport.loopEnd = state.loopEnd * percent
+            Tone.Transport.loopStart = (state.loopStart / 10) * percent
+            Tone.Transport.loopEnd = (state.loopEnd / 10) * percent
         }
     }
 
@@ -1529,8 +1547,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                         </div>
                         <img className="player-button" src={pitchIcon} ref={pitchImg} onClick={() => pitchPopup.current!.style.display === "flex" ? pitchPopup.current!.style.display = "none" : pitchPopup.current!.style.display = "flex"} width="30" height="30" onMouseEnter={() => toggleHover("pitch", true)} onMouseLeave={() => toggleHover("pitch")}/>
                         <div className="progress-container" onMouseUp={() => state.dragging = false}>
-                            <Slider className="progress-slider" ref={progressBar} onBeforeChange={() => state.dragging = true} onChange={(value) => updateProgressText(value)} onAfterChange={(value) => seek(value)} defaultValue={0}/>
-                            <Slider.Range className="ab-slider" ref={abSlider} min={0} max={100} defaultValue={[0, 100]} onBeforeChange={() => state.dragging = true} onChange={(value) => updateProgressTextAB(value)} onAfterChange={(value) => abloop(value)} style={({display: "none"})}/>
+                            <Slider className="progress-slider" ref={progressBar} min={0} max={1000} onBeforeChange={() => state.dragging = true} onChange={(value) => updateProgressText(value)} onAfterChange={(value) => seek(value / 10)} defaultValue={0}/>
+                            <Slider.Range className="ab-slider" ref={abSlider} min={0} max={1000} defaultValue={[0, 1000]} onBeforeChange={() => state.dragging = true} onChange={(value) => updateProgressTextAB(value)} onAfterChange={(value) => abloop(value)} style={({display: "none"})}/>
                         </div>
                         <img className="player-button" ref={loopImg} src={loopIcon} onClick={() => loop()} width="30" height="30" onMouseEnter={() => toggleHover("loop", true)} onMouseLeave={() => toggleHover("loop")}/>
                         <img className="player-button" ref={abLoopImg} src={abLoopIcon} onClick={() => toggleAB()} width="30" height="30" onMouseEnter={() => toggleHover("abloop", true)} onMouseLeave={() => toggleHover("abloop")}/>
