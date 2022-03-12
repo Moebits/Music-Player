@@ -203,6 +203,11 @@
     filter: hue-rotate(130deg) brightness(120%);
 }
 
+.pitch-checkbox {
+    margin-left: 0.5rem;
+    filter: hue-rotate(130deg) brightness(120%);
+}
+
 .speed-text {
     cursor: text;
     color: white;
@@ -229,14 +234,26 @@
     align-items: center;
 }
 
-.pitch-popup {
+.pitch-checkbox-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.pitch-popup-container {
     position: relative;
 }
 
-.pitch-bar {
+.pitch-popup {
     position: absolute;
     bottom: 1.5rem;
     left: -2.7rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.pitch-bar {
     filter: hue-rotate(130deg) brightness(120%);
 }
 

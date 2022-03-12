@@ -1,6 +1,6 @@
 {
   "name": "music-player",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "description": "A music player with real-time pitch shifting, reversing, and time stretching",
   "main": "dist/main.js",
   "scripts": {
@@ -34,7 +34,10 @@
         "target": "dmg",
         "arch": "x64"
       },
-      "category": "public.app-category.music"
+      "category": "public.app-category.music",
+      "extraFiles": [
+        "sox/sox"
+      ]
     },
     "dmg": {
       "title": "Music Player",
@@ -48,7 +51,12 @@
       "target": {
         "target": "nsis",
         "arch": "x64"
-      }
+      },
+      "extraFiles": [
+        "sox/sox.exe",
+        "sox/libmad-0.dll",
+        "sox/libmp3lame-0.dll"
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -64,7 +72,10 @@
         "target": "appImage",
         "arch": "x64"
       },
-      "category": "Audio"
+      "category": "Audio",
+      "extraFiles": [
+        "sox/sox"
+      ]
     },
     "files": [
       "dist/**/*",

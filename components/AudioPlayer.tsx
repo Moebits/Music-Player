@@ -51,6 +51,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const volumeBar = useRef(null) as any
     const speedBar = useRef(null) as React.RefObject<HTMLInputElement>
     const speedCheckbox = useRef(null) as React.RefObject<HTMLInputElement>
+    const pitchCheckbox = useRef(null) as React.RefObject<HTMLInputElement>
     const pitchBar = useRef(null) as React.RefObject<HTMLInputElement>
     const secondsProgress = useRef(null) as React.RefObject<HTMLSpanElement>
     const secondsTotal = useRef(null) as React.RefObject<HTMLSpanElement>
@@ -196,7 +197,10 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         portamento: 0,
         resizeFlag: false,
         mouseFlag: false,
-        savedLoop: [0, 1000]
+        savedLoop: [0, 1000],
+        pitchRealtime: false,
+        pitchedSong: "",
+        stepFlag: false
     }
 
     const initialState = {...state}
@@ -207,6 +211,10 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (saved.preservesPitch !== undefined) {
             state.preservesPitch = saved.preservesPitch
             speedCheckbox.current!.checked = !state.preservesPitch
+        }
+        if (saved.pitchRealtime !== undefined) {
+            state.pitchRealtime = saved.pitchRealtime
+            pitchCheckbox.current!.checked = state.pitchRealtime
         }
         if (saved.speed !== undefined) {
             state.speed = saved.speed
@@ -253,6 +261,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const refreshState = () => {
         const apply = {grain, player}
         preservesPitch(state.preservesPitch)
+        pitchRealtime(state.pitchRealtime)
         speed(state.speed)
         pitch(state.pitch)
         reverse(state.reverse, apply)
@@ -261,7 +270,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const saveState = () => {
-        ipcRenderer.invoke("save-state", {reverse: state.reverse, pitch: state.pitch, speed: state.speed, preservesPitch: state.preservesPitch, loop: state.loop, abloop: state.abloop, loopStart: state.loopStart, loopEnd: state.loopEnd})
+        ipcRenderer.invoke("save-state", {reverse: state.reverse, pitch: state.pitch, speed: state.speed, preservesPitch: state.preservesPitch, pitchRealtime: state.pitchRealtime, loop: state.loop, abloop: state.abloop, loopStart: state.loopStart, loopEnd: state.loopEnd})
     }
 
     let player: Tone.Player
@@ -349,18 +358,18 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         return current.buffer.loaded
     }
 
-    const play = async () => {
+    const play = async (alwaysPlay?: boolean) => {
         if (!checkBuffer()) return
         await Tone.start()
-        await Tone.loaded()
         duration()
         const progress = Math.round(Number(progressBar.current.sliderRef?.childNodes[3].ariaValueNow))
+        console.log(progress)
         if (state.reverse === true) {
             if (progress === 0) stop()
         } else {
             if (progress === 100) stop()
         }
-        if (Tone.Transport.state === "started") {
+        if (Tone.Transport.state === "started" && !alwaysPlay) {
             if (state.midi) disposeSynths()
             Tone.Transport.pause()
         } else {
@@ -373,7 +382,6 @@ const AudioPlayer: React.FunctionComponent = (props) => {
 
     const stop = () => {
         if (!checkBuffer()) return
-        if (Tone.Transport.state === "stopped") return
         Tone.Transport.stop()
         functions.flipPlayTitle()
         ipcRenderer.invoke("play-state-changed")
@@ -495,6 +503,16 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         speed()
     }
 
+    const pitchRealtime = (value?: boolean) => {
+        state.pitchRealtime = value !== undefined ? value : !state.pitchRealtime
+        pitchCheckbox.current!.checked = state.pitchRealtime
+        if (state.pitchRealtime) {
+            unrealtimePitch(true)
+        }
+        saveState()
+        pitch()
+    }
+
     const updateSliderPos = (value: number) => {
         progressBar.current.sliderRef.childNodes[3].ariaValueNow = `${value}`
         progressBar.current.sliderRef.childNodes[3].style = `left: ${value}%; right: auto; transform: translateX(-50%);`
@@ -522,13 +540,14 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const reset = async () => {
-        const {song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm} = state
-        state = {...initialState, song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm}
+        const {song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, loop} = state
+        state = {...initialState, song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, loop}
         grain.playbackRate = state.speed
         player.playbackRate = state.speed
         grain.detune = state.pitch * 100
         speedBar.current!.value = String(state.speed)
         speedCheckbox.current!.checked = !state.preservesPitch
+        pitchCheckbox.current!.checked = state.pitchRealtime
         pitchBar.current!.value = String(state.pitch)
         grain.reverse = state.reverse
         player.reverse = state.reverse
@@ -538,16 +557,14 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         (document.querySelector(".progress-slider > .rc-slider-track") as any).style.backgroundColor = "#991fbe";
         (document.querySelector(".progress-slider > .rc-slider-rail") as any).style.backgroundColor = "black"
         speedImg.current!.src = speedIcon
-        loopImg.current!.src = loopIcon
+        loopImg.current!.src = state.loop ? loopActiveIcon : loopIcon
         reverseImg.current!.src = reverseIcon
         pitchImg.current!.src = pitchIcon
         abLoopImg.current!.src = abLoopIcon
-        updateSliderPos(0)
         duration()
         updateMetadata()
+        unrealtimePitch()
         ipcRenderer.invoke("reset-effects")
-        stop()
-        play()
         setTimeout(() => {
             applyEffects()
         }, 100)
@@ -700,6 +717,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 event.preventDefault()
                 speedBar.current!.step = "0.01"
                 pitchBar.current!.step = "1"
+                state.stepFlag = false
             }
             /* Play on Spacebar */
             if (event.code === "Space") {
@@ -731,10 +749,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }, {passive: false})
         window.onkeyup = (event: KeyboardEvent) => {
             if (!event.shiftKey) {
-                if (Number(speedBar.current!.value) % 0.5 !== 0) speedBar.current!.value = String(functions.round(Number(speedBar.current!.value), 0.5))
-                if (Number(pitchBar.current!.value) % 12 !== 0) pitchBar.current!.value = String(functions.round(Number(pitchBar.current!.value), 12))
-                speedBar.current!.step = "0.5"
-                pitchBar.current!.step = "12"
+                state.stepFlag = true
             }
         }
         window.addEventListener("wheel", (event: WheelEvent) => {
@@ -743,6 +758,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             volume(state.volume - delta * 0.05)
         }, {passive: false})
         window.onmousedown = () => {
+            if (state.stepFlag) {
+                speedBar.current!.step = "0.5"
+                pitchBar.current!.step = "12"
+                state.stepFlag = false
+            }
             state.mouseFlag = true
         }
         window.onmouseup = () => {
@@ -779,7 +799,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             Tone.Transport.seconds = value
         }
         if (state.midi) playMIDI()
-        if (Tone.Transport.state === "paused" || Tone.Transport.state === "stopped") play()
+        if (Tone.Transport.state === "paused" || Tone.Transport.state === "stopped") play(true)
     }
 
     const rewind = (value: number) => {
@@ -814,17 +834,43 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
     }
 
-    const pitch = async (value?: number | string) => {
-        if (value) state.pitch = Number(value) 
+    const unrealtimePitch = async (reset?: boolean) => {
+        const paused = Tone.Transport.state === "paused" || Tone.Transport.state === "stopped"
+        if (state.pitch === 0 || reset) {
+            grain.buffer.load(state.song)
+            player.load(state.song)
+        } else {
+            const pitchedSong = await ipcRenderer.invoke("pitch-song", state.song, state.pitch)
+            state.pitchedSong = pitchedSong
+            grain.buffer.load(pitchedSong)
+            player.load(pitchedSong)
+        }
+        await Tone.loaded()
+        duration()
+        const seconds = Tone.Transport.seconds
+        stop()
+        play(true)
+        Tone.Transport.seconds = seconds
+        if (paused) Tone.Transport.pause()
+    }
+
+    const pitch = async (value?: number | string, applyState?: any) => {
+        if (value !== undefined) state.pitch = Number(value) 
         if (state.pitch === 0) {
             pitchImg.current!.src = pitchIcon
         } else {
             pitchImg.current!.src = pitchActiveIcon
         }
         if (state.midi) {
-            await playMIDI()
+            if (!applyState) await playMIDI()
         } else {
-            grain.detune = state.pitch * 100
+            let currentGrain = applyState ? applyState.grain : grain
+            if (state.pitchRealtime) {
+                currentGrain.detune = state.pitch * 100
+            } else {
+                currentGrain.detune = 0
+                if (!applyState) unrealtimePitch()
+            }
         }
         saveState()
     }
@@ -911,19 +957,15 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         state.midiFile = midi
         updateRecentFiles()
         switchState()
-        if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
-            stop()
-        }
-        if (Tone.Transport.state === "stopped") {
-            play()
-        }
+        stop()
+        play(true)
     }
 
     const upload = async (file?: string) => {
         if (!file) file = await ipcRenderer.invoke("select-file")
         if (!file) return
         if (path.extname(file) === ".mid") return uploadMIDI(file)
-        if (!file.startsWith("file:///")) file = `file:///${file}`
+        if (process.platform === "win32") if (!file.startsWith("file:///")) file = `file:///${file}`
         state.midi = false
         const fileObject = await functions.getFile(file)
         const tagInfo = await new Promise((resolve, reject) => {
@@ -942,19 +984,15 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         state.songName = path.basename(file).replace(".mp3", "").replace(".wav", "").replace(".flac", "").replace(".ogg", "")
         state.song = file
         state.songUrl = ""
-        await grain.buffer.load(state.song)
-        await player.load(state.song)
+        grain.buffer.load(state.song)
+        player.load(state.song)
         await Tone.loaded()
         duration()
         updateMetadata()
         updateRecentFiles()
         switchState()
-        if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
-            stop()
-        }
-        if (Tone.Transport.state === "stopped") {
-            play()
-        }
+        stop()
+        play(true)
         refreshState()
     }
 
@@ -1014,8 +1052,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const applyState = async (localState: any, grain: Tone.GrainPlayer, player: Tone.Player) => {
         const apply = {state: localState, grain, player}
         if (localState.song) {
-            await grain.buffer.load(localState.song)
-            await player.load(localState.song)
+            if (localState.pitchRealtime || localState.pitch === 0 || !localState.pitchedSong) {
+                grain.buffer.load(localState.song)
+                player.load(localState.song)
+            } else {
+                grain.buffer.load(localState.pitchedSong)
+                player.load(localState.pitchedSong)
+            }
             await Tone.loaded()
         }
         let editCode = ""
@@ -1028,7 +1071,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             editCode += "-reverse"
         } 
         if (localState.pitch !== 0) {
-            pitch()
+            pitch(undefined, apply)
             editCode += "-pitch"
         }
         if (localState.abloop !== false) {
@@ -1219,19 +1262,15 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             state.song = window.URL.createObjectURL(blob)
             state.songCover = artwork
             state.songUrl = value
-            await grain.buffer.load(state.song)
-            await player.load(state.song)
+            grain.buffer.load(state.song)
+            player.load(state.song)
             await Tone.loaded()
             duration()
             updateMetadata()
             updateRecentFiles()
             switchState()
-            if (Tone.Transport.state === "started" || Tone.Transport.state === "paused") {
-                stop()
-            }
-            if (Tone.Transport.state === "stopped") {
-                play()
-            }
+            stop()
+            play(true)
             refreshState()
         }
     }
@@ -1260,7 +1299,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         })
     }
 
-    const next = () => {const current = state.preservesPitch ? grain : player
+    const next = () => {
+        const current = state.preservesPitch ? grain : player
         ipcRenderer.invoke("get-next", {
             songName: state.songName, 
             song: state.song,
@@ -1537,13 +1577,18 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                             <div className="speed-popup">
                                 <input type="range" ref={speedBar} onChange={(event) => speed(event.target.value)} min="0.5" max="4" step="0.5" defaultValue="1" className="speed-bar"/>
                                 <div className="speed-checkbox-container">
-                                <p className="speed-text">Pitch?</p><input type="checkbox" ref={speedCheckbox} defaultChecked onChange={() => preservesPitch()} className="speed-checkbox"/>
+                                    <p className="speed-text">Pitch?</p><input type="checkbox" ref={speedCheckbox} defaultChecked onChange={() => preservesPitch()} className="speed-checkbox"/>
                                 </div>       
                             </div>
                         </div>
                         <img className="player-button" src={speedIcon} ref={speedImg} onClick={() => speedPopup.current!.style.display === "flex" ? speedPopup.current!.style.display = "none" : speedPopup.current!.style.display = "flex"} width="30" height="30" onMouseEnter={() => toggleHover("speed", true)} onMouseLeave={() => toggleHover("speed")}/>
-                        <div className="pitch-popup" ref={pitchPopup} style={({display: "none"})}>
-                            <input type="range" ref={pitchBar} onChange={(event) => pitch(event.target.value)} min="-24" max="24" step="12" defaultValue="0" className="pitch-bar"/>
+                        <div className="pitch-popup-container" ref={pitchPopup} style={({display: "none"})}>
+                            <div className="pitch-popup">
+                                <input type="range" ref={pitchBar} onChange={(event) => pitch(event.target.value)} min="-24" max="24" step="12" defaultValue="0" className="pitch-bar"/>
+                                <div className="pitch-checkbox-container">
+                                    <p className="speed-text">Realtime?</p><input type="checkbox" ref={pitchCheckbox} onChange={() => pitchRealtime()} className="pitch-checkbox"/>
+                                </div>
+                            </div>
                         </div>
                         <img className="player-button" src={pitchIcon} ref={pitchImg} onClick={() => pitchPopup.current!.style.display === "flex" ? pitchPopup.current!.style.display = "none" : pitchPopup.current!.style.display = "flex"} width="30" height="30" onMouseEnter={() => toggleHover("pitch", true)} onMouseLeave={() => toggleHover("pitch")}/>
                         <div className="progress-container" onMouseUp={() => state.dragging = false}>

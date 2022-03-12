@@ -9,8 +9,11 @@ import pack from "./package.json"
 import Youtube from "youtube.ts"
 import Soundcloud from "soundcloud.ts"
 import functions from "./structures/functions"
+import util from "util"
+import child_process from "child_process"
 import fs from "fs"
 
+const exec = util.promisify(child_process.exec)
 require("@electron/remote/main").initialize()
 process.setMaxListeners(0)
 let window: Electron.BrowserWindow | null
@@ -20,6 +23,27 @@ let filePath = ""
 
 const youtube = new Youtube()
 const soundcloud = new Soundcloud()
+
+let soxPath = undefined as any
+if (process.platform === "darwin" || process.platform === "linux") soxPath = path.join(app.getAppPath(), "../../sox/sox")
+if (process.platform === "win32") soxPath = path.join(app.getAppPath(), "../../sox/sox.exe")
+if (!fs.existsSync(soxPath)) soxPath = path.join(__dirname, "../sox/sox")
+
+let lastPitchedFile = ""
+
+ipcMain.handle("pitch-song", async (event, song: string, pitch: number) => {
+  if (song.startsWith("file:///")) song = song.replace("file:///", "")
+  const ext = path.extname(song)
+  const name = path.basename(song, ext)
+  const songDest = path.join(app.getAppPath(), `../assets/audio/`)
+  if (!fs.existsSync(songDest)) fs.mkdirSync(songDest, {recursive: true})
+  const output = path.join(songDest, `./${name}_pitched${ext}`)
+  if (output !== lastPitchedFile && fs.existsSync(lastPitchedFile)) fs.unlinkSync(lastPitchedFile)
+  let command = `"${soxPath ? soxPath : "sox"}" "${song}" "${output}" pitch ${pitch * 100}`
+  await exec(command).then((s: any) => s.stdout).catch((e: any) => e.stderr)
+  lastPitchedFile = output
+  return output
+})
 
 ipcMain.handle("get-synth-state", () => {
   return store.get("synth", {})
@@ -103,7 +127,7 @@ ipcMain.handle("get-previous", async (event, info: any) => {
     const index = files.findIndex((f) => f === path.basename(song))
     if (index !== -1) {
       if (files[index - 1]) {
-        const info = {song: `file:///${directory}/${files[index - 1]}`}
+        const info = {song: `${process.platform === "win32" ? "file:///" : ""}${directory}/${files[index - 1]}`}
         window?.webContents.send("invoke-play", info)
       }
     }
@@ -118,7 +142,7 @@ ipcMain.handle("get-next", async (event, info: any) => {
     const index = files.findIndex((f) => f === path.basename(song))
     if (index !== -1) {
       if (files[index + 1]) {
-        const info = {song: `file:///${directory}/${files[index + 1]}`}
+        const info = {song: `${process.platform === "win32" ? "file:///" : ""}${directory}/${files[index + 1]}`}
         window?.webContents.send("invoke-play", info)
       }
     }
