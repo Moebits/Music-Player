@@ -86,25 +86,27 @@
     }
 }
 
-.fx-slider.rc-slider {
+.fx-slider {
     width: 70%;
     border-radius: 0.2;
     align-items: center;
 }
 
-.fx-slider > .rc-slider-rail {
+.fx-slider-track-1 {
     height: 0.4rem;
     background-color: black;
     border-radius: 0.2;
 }
 
-.fx-slider > .rc-slider-track {
+.fx-slider-track-0 {
     height: 0.4rem;
     background-color: #ff61b8;
     border-radius: 0.2;
 }
 
-.fx-slider > .rc-slider-handle {
+.fx-slider-thumb {
+    content: url("../assets/icons/volume-thumb.png");
+    background-color: transparent;
     margin-top: -7px;
     border: none;
     height: 1.3rem;
@@ -116,9 +118,7 @@
     &:hover {
         filter: hue-rotate(-30deg);
     }
-}
-
-.fx-slider > .rc-slider-handle {
-    content: url("../assets/icons/volume-thumb.png");
-    background-color: black;
+    &:focus {
+        outline: none;
+    }
 }

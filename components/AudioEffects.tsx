@@ -1,11 +1,18 @@
 import {ipcRenderer} from "electron"
 import React, {useContext, useEffect, useRef, useState} from "react"
-import Slider from "rc-slider"
+import Slider from "react-slider"
 import "../styles/audioeffects.less"
 
 const AudioEffects: React.FunctionComponent = (props) => {
     const [visible, setVisible] = useState(false)
     const [hover, setHover] = useState(false)
+    const ref1 = useRef(null)
+    const ref2 = useRef(null)
+    const ref3 = useRef(null)
+    const ref4 = useRef(null)
+    const ref5 = useRef(null)
+    const ref6 = useRef(null)
+    const ref7 = useRef(null)
 
     const initialState = {
         reverbMix: 0,
@@ -95,6 +102,17 @@ const AudioEffects: React.FunctionComponent = (props) => {
         if (!hover) setVisible(false)
     }
 
+    const updatePos = (value: number, ref: any, max: number) => {
+        value *= (100 / max)
+        if (!ref.current) return
+        const width = ref.current.slider.clientWidth - 20
+        const valuePx = (value / 100) * width
+        ref.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
+        ref.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: 0px`
+        ref.current.slider.childNodes[2].ariaValueNow = `${value * 10}`
+        ref.current.slider.childNodes[2].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
+    }
+
     if (visible) {
         return (
             <section className="effects-dialog" onMouseDown={close}>
@@ -106,31 +124,31 @@ const AudioEffects: React.FunctionComponent = (props) => {
                         <div className="effects-row-container">
                             <div className="effects-row">
                                 <p className="effects-text">Reverb Mix: </p>
-                                <Slider className="fx-slider" onChange={(value) => {changeState("reverbMix", value)}} min={0} max={1} step={0.1} value={state.reverbMix}/>
+                                <Slider ref={ref1} className="fx-slider" trackClassName="fx-slider-track" thumbClassName="fx-slider-thumb" onChange={(value) => {changeState("reverbMix", value); updatePos(value, ref1, 1)}} min={0} max={1} step={0.1} value={state.reverbMix}/>
                             </div>
                             <div className="effects-row">
                                 <p className="effects-text">Reverb Decay: </p>
-                                <Slider className="fx-slider" onChange={(value) => {changeState("reverbDecay", value)}} min={0.1} max={5} step={0.5} value={state.reverbDecay}/>
+                                <Slider ref={ref2} className="fx-slider" trackClassName="fx-slider-track" thumbClassName="fx-slider-thumb" onChange={(value) => {changeState("reverbDecay", value); updatePos(value - 0.1, ref2, 4.9)}} min={0.1} max={5} step={0.5} value={state.reverbDecay}/>
                             </div>
                             <div className="effects-row">
                                 <p className="effects-text">Delay Mix: </p>
-                                <Slider className="fx-slider" onChange={(value) => {changeState("delayMix", value)}} min={0} max={1} step={0.1} value={state.delayMix}/>
+                                <Slider ref={ref3} className="fx-slider" trackClassName="fx-slider-track" thumbClassName="fx-slider-thumb" onChange={(value) => {changeState("delayMix", value); updatePos(value, ref3, 1)}} min={0} max={1} step={0.1} value={state.delayMix}/>
                             </div>
                             <div className="effects-row">
                                 <p className="effects-text">Delay Time: </p>
-                                <Slider className="fx-slider" onChange={(value) => {changeState("delayTime", value)}} min={0.1} max={1} step={0.1} value={state.delayTime}/>
+                                <Slider ref={ref4} className="fx-slider" trackClassName="fx-slider-track" thumbClassName="fx-slider-thumb" onChange={(value) => {changeState("delayTime", value); updatePos(value - 0.1, ref4, 0.9)}} min={0.1} max={1} step={0.1} value={state.delayTime}/>
                             </div>
                             <div className="effects-row">
                                 <p className="effects-text">Delay Feedback: </p>
-                                <Slider className="fx-slider" onChange={(value) => {changeState("delayFeedback", value)}} min={0.1} max={1} step={0.1} value={state.delayFeedback}/>
+                                <Slider ref={ref5} className="fx-slider" trackClassName="fx-slider-track" thumbClassName="fx-slider-thumb" onChange={(value) => {changeState("delayFeedback", value); updatePos(value - 0.1, ref5, 0.9)}} min={0.1} max={1} step={0.1} value={state.delayFeedback}/>
                             </div>
                             <div className="effects-row">
                                 <p className="effects-text">Phaser Mix: </p>
-                                <Slider className="fx-slider" onChange={(value) => {changeState("phaserMix", value)}} min={0} max={1} step={0.1} value={state.phaserMix}/>
+                                <Slider ref={ref6} className="fx-slider" trackClassName="fx-slider-track" thumbClassName="fx-slider-thumb" onChange={(value) => {changeState("phaserMix", value); updatePos(value, ref6, 1)}} min={0} max={1} step={0.1} value={state.phaserMix}/>
                             </div>
                             <div className="effects-row">
                                 <p className="effects-text">Phaser Frequency: </p>
-                                <Slider className="fx-slider" onChange={(value) => {changeState("phaserFrequency", value)}} min={1} max={10} step={1} value={state.phaserFrequency}/>
+                                <Slider ref={ref7} className="fx-slider" trackClassName="fx-slider-track" thumbClassName="fx-slider-thumb" onChange={(value) => {changeState("phaserFrequency", value); updatePos(value - 1, ref7, 9)}} min={1} max={10} step={1} value={state.phaserFrequency}/>
                             </div>
                         </div>
                     </div>

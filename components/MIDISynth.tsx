@@ -1,6 +1,6 @@
 import {ipcRenderer} from "electron"
 import React, {useEffect, useRef, useState} from "react"
-import Slider from "rc-slider"
+import Slider from "react-slider"
 import monoButton from "../assets/icons/mono.png"
 import monoButtonHover from "../assets/icons/mono-hover.png"
 import polyButton from "../assets/icons/poly.png"
@@ -49,6 +49,11 @@ const MIDISynth: React.FunctionComponent = (props) => {
     const [pulseHoverState, setPulseHoverState] = useState(false)
     const [pwmHoverState, setPWMHoverState] = useState(false)
     const [fatHoverState, setFatHoverState] = useState(false)
+    const ref1 = useRef(null)
+    const ref2 = useRef(null)
+    const ref3 = useRef(null)
+    const ref4 = useRef(null)
+    const ref5 = useRef(null)
 
     const initialState = {
         wave: "square",
@@ -242,6 +247,17 @@ const MIDISynth: React.FunctionComponent = (props) => {
         }
     }
 
+    const updatePos = (value: number, ref: any, max: number) => {
+        value *= (100 / max)
+        if (!ref.current) return
+        const width = ref.current.slider.clientWidth - 20
+        const valuePx = (value / 100) * width
+        ref.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
+        ref.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: 0px`
+        ref.current.slider.childNodes[2].ariaValueNow = `${value * 10}`
+        ref.current.slider.childNodes[2].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
+    }
+
     if (visible) {
         return (
             <section className="synth-dialog" onMouseDown={close}>
@@ -269,24 +285,24 @@ const MIDISynth: React.FunctionComponent = (props) => {
                                 <img className="synth-poly-button" src={state.poly ? (polyHover ? polyButtonHover : polyButton) : (polyHover ? monoButtonHover : monoButton)} onClick={() => changeState("poly", !state.poly)} onMouseEnter={() => setPolyHover(true)} onMouseLeave={() => setPolyHover(false)}/>
                                 <div className="synth-porta-container">
                                     <p className="synth-text">Portamento: </p>
-                                    <Slider className="synth-slider porta-slider" onChange={(value) => {changeState("portamento", Number(value))}} min={0} max={0.2} step={0.01} value={state.portamento}/>
+                                    <Slider ref={ref1} className="synth-slider porta-slider" trackClassName="synth-slider-track" thumbClassName="synth-slider-thumb" onChange={(value) => {changeState("portamento", Number(value)); updatePos(value, ref1, 0.2)}} min={0} max={0.2} step={0.01} value={state.portamento}/>
                                 </div>
                             </div>
                             <div className="synth-row">
                                 <p className="synth-text">Attack: </p>
-                                <Slider className="synth-slider" onChange={(value) => {changeState("attack", Number(value))}} min={0} max={0.5} step={0.02} value={state.attack}/>
+                                <Slider ref={ref2} className="synth-slider" trackClassName="synth-slider-track" thumbClassName="synth-slider-thumb" onChange={(value) => {changeState("attack", Number(value)); updatePos(value, ref2, 0.5)}} min={0} max={0.5} step={0.02} value={state.attack}/>
                             </div>
                             <div className="synth-row">
                                 <p className="synth-text">Decay: </p>
-                                <Slider className="synth-slider" onChange={(value) => {changeState("decay", Number(value))}} min={0} max={2} step={0.05} value={state.decay}/>
+                                <Slider ref={ref3} className="synth-slider" trackClassName="synth-slider-track" thumbClassName="synth-slider-thumb" onChange={(value) => {changeState("decay", Number(value)); updatePos(value, ref3, 2)}} min={0} max={2} step={0.05} value={state.decay}/>
                             </div>
                             <div className="synth-row">
                                 <p className="synth-text">Sustain: </p>
-                                <Slider className="synth-slider" onChange={(value) => {changeState("sustain", Number(value))}} min={0} max={1} step={0.02} value={state.sustain}/>
+                                <Slider ref={ref4} className="synth-slider" trackClassName="synth-slider-track" thumbClassName="synth-slider-thumb" onChange={(value) => {changeState("sustain", Number(value)); updatePos(value, ref4, 1)}} min={0} max={1} step={0.02} value={state.sustain}/>
                             </div>
                             <div className="synth-row">
                                 <p className="synth-text">Release: </p>
-                                <Slider className="synth-slider" onChange={(value) => {changeState("release", Number(value))}} min={0} max={2} step={0.05} value={state.release}/>
+                                <Slider ref={ref5} className="synth-slider" trackClassName="synth-slider-track" thumbClassName="synth-slider-thumb" onChange={(value) => {changeState("release", Number(value)); updatePos(value, ref5, 2)}} min={0} max={2} step={0.05} value={state.release}/>
                             </div>
                         </div>
                     </div>

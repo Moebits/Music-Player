@@ -86,25 +86,27 @@
     }
 }
 
-.synth-slider.rc-slider {
+.synth-slider {
     width: 70%;
     border-radius: 0.2;
     align-items: center;
 }
 
-.synth-slider > .rc-slider-rail {
+.synth-slider-track-1 {
     height: 0.4rem;
     background-color: black;
     border-radius: 0.2;
 }
 
-.synth-slider > .rc-slider-track {
+.synth-slider-track-0 {
     height: 0.4rem;
     background-color: #ff61b8;
     border-radius: 0.2;
 }
 
-.synth-slider > .rc-slider-handle {
+.synth-slider-thumb {
+    content: url("../assets/icons/volume-thumb.png");
+    background-color: transparent;
     margin-top: -7px;
     border: none;
     height: 1.3rem;
@@ -116,11 +118,9 @@
     &:hover {
         filter: hue-rotate(-30deg);
     }
-}
-
-.synth-slider > .rc-slider-handle {
-    content: url("../assets/icons/volume-thumb.png");
-    background-color: black;
+    &:focus {
+        outline: none;
+    }
 }
 
 .synth-porta-container {

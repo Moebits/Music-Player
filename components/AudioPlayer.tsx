@@ -1,7 +1,7 @@
 import React, {useEffect, useRef} from "react"
 import {ipcRenderer, clipboard} from "electron" 
 import path from "path"
-import Slider from "rc-slider"
+import Slider from "react-slider"
 import * as Tone from "tone"
 import {Midi} from '@tonejs/midi'
 import jsmediatags from "jsmediatags"
@@ -113,6 +113,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             download()
         }
         initState()
+        abSlider.current.slider.style.display = "none"
         ipcRenderer.on("open-file", openFile)
         ipcRenderer.on("invoke-play", invokePlay)
         ipcRenderer.on("change-play-state", changePlayState)
@@ -158,7 +159,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         loop: false,
         abloop: false,
         loopStart: 0,
-        loopEnd: 0,
+        loopEnd: 1000,
         preservesPitch: false,
         duration: 0,
         song: "",
@@ -256,6 +257,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (synthSaved.poly !== undefined) state.poly = synthSaved.poly 
         if (synthSaved.portamento !== undefined) state.portamento = synthSaved.portamento
         updateBarPos()
+        updateVolumePos(1)
     }
 
     const refreshState = () => {
@@ -358,12 +360,16 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         return current.buffer.loaded
     }
 
+    const getProgress = () => {
+        if (!(progressBar.current)) return 0
+        return Math.round(Number(progressBar.current.slider.childNodes[2].ariaValueNow) / 10)
+    }
+
     const play = async (alwaysPlay?: boolean) => {
         if (!checkBuffer()) return
         await Tone.start()
         duration()
-        const progress = Math.round(Number(progressBar.current.sliderRef?.childNodes[3].ariaValueNow))
-        console.log(progress)
+        const progress = getProgress()
         if (state.reverse === true) {
             if (progress === 0) stop()
         } else {
@@ -514,24 +520,39 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const updateSliderPos = (value: number) => {
-        progressBar.current.sliderRef.childNodes[3].ariaValueNow = `${value}`
-        progressBar.current.sliderRef.childNodes[3].style = `left: ${value}%; right: auto; transform: translateX(-50%);`
-        progressBar.current.sliderRef.childNodes[1].style = `left: 0%; right: auto; width: ${value}%; background-color: #991fbe;`
+        if (!progressBar.current) return
+        const width = progressBar.current.slider.clientWidth - 15
+        const valuePx = (value / 100) * width
+        progressBar.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
+        progressBar.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: 0px`
+        progressBar.current.slider.childNodes[2].ariaValueNow = `${value * 10}`
+        progressBar.current.slider.childNodes[2].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
     }
 
     const updateVolumePos = (value: number) => {
-        volumeBar.current.sliderRef.childNodes[3].ariaValueNow = `${value}`
-        volumeBar.current.sliderRef.childNodes[3].style = `left: ${value*100}%; right: auto; transform: translateX(-50%);`
-        volumeBar.current.sliderRef.childNodes[1].style = `left: 0%; right: auto; width: ${value*100}%; background-color: #ff3298;`
+        value *= 100
+        if (!volumeBar.current) return
+        const width = volumeBar.current.slider.clientWidth
+        const valuePx = (value / 100) * width
+        volumeBar.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
+        volumeBar.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: 0px`
+        volumeBar.current.slider.childNodes[2].ariaValueNow = `${value * 10}`
+        volumeBar.current.slider.childNodes[2].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
     }
 
     const updateABSliderPos = (value: number[]) => {
         value = value.map((v) => v / 10)
-        abSlider.current.sliderRef.childNodes[1].style = `left: ${value[0]}%; right: auto; width: ${value[1] - value[0]}%;`
-        abSlider.current.sliderRef.childNodes[3].ariaValueNow = `${value[0]}`
-        abSlider.current.sliderRef.childNodes[3].style = `left: ${value[0]}%; right: auto; transform: translateX(-50%);`
-        abSlider.current.sliderRef.childNodes[4].ariaValueNow = `${value[1]}`
-        abSlider.current.sliderRef.childNodes[4].style = `left: ${value[1]}%; right: auto; transform: translateX(-50%);`
+        if (!abSlider.current) return
+        const width = abSlider.current.slider.clientWidth - 20
+        const valuePx = (value[0] / 100) * width
+        const valuePx2 = (value[1] / 100) * width
+        abSlider.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
+        abSlider.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: ${width - valuePx2}px`
+        abSlider.current.slider.childNodes[2].style = `position: absolute; left: ${valuePx2}px; right: 0px`
+        abSlider.current.slider.childNodes[3].ariaValueNow = `${value[0] * 10}`
+        abSlider.current.slider.childNodes[3].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
+        abSlider.current.slider.childNodes[4].ariaValueNow = `${value[1] * 10}`
+        abSlider.current.slider.childNodes[4].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx2}px`
     }
 
     const updateBarPos = () => {
@@ -553,9 +574,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         player.reverse = state.reverse
         Tone.Transport.loop = state.loop
         updateABSliderPos([0, 1000])
-        abSlider.current.sliderRef.style.display = "none";
-        (document.querySelector(".progress-slider > .rc-slider-track") as any).style.backgroundColor = "#991fbe";
-        (document.querySelector(".progress-slider > .rc-slider-rail") as any).style.backgroundColor = "black"
+        abSlider.current.slider.style.display = "none";
         speedImg.current!.src = speedIcon
         loopImg.current!.src = state.loop ? loopActiveIcon : loopIcon
         reverseImg.current!.src = reverseIcon
@@ -564,6 +583,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         duration()
         updateMetadata()
         unrealtimePitch()
+        stop()
+        play()
         ipcRenderer.invoke("reset-effects")
         setTimeout(() => {
             applyEffects()
@@ -582,8 +603,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             loopImg.current!.src = loopActiveIcon
             state.loop = true
             Tone.Transport.loop = true
-            Tone.Transport.loopStart = state.abloop ? state.loopStart : 0
-            Tone.Transport.loopEnd = state.abloop ? state.loopEnd : state.duration
+            Tone.Transport.loopStart = state.abloop ? (state.loopStart / 1000) * state.duration : 0
+            Tone.Transport.loopEnd = state.abloop ? (state.loopEnd / 1000) * state.duration : state.duration
         }
         updateMetadata()
         saveState()
@@ -1026,19 +1047,20 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const toggleAB = (value?: boolean) => {
-        let condition = value !== undefined ? value === true : abSlider.current.sliderRef.style.display === "none"
+        let condition = value !== undefined ? value === true : abSlider.current.slider.style.display === "none"
         if (condition) {
-            abSlider.current.sliderRef.style.display = "flex"
+            abSlider.current.slider.style.display = "flex"
             state.abloop = true
             state.loop = true
-            if (!state.loopEnd) state.loopEnd = state.duration
+            if (!state.loopEnd) state.loopEnd = 1000
             loopImg.current!.src = loopActiveIcon
             abLoopImg.current!.src = abLoopActiveIcon
             Tone.Transport.loop = true
-            Tone.Transport.loopStart = state.loopStart
-            Tone.Transport.loopEnd = state.loopEnd
+            Tone.Transport.loopStart = (state.loopStart / 1000) * state.duration
+            Tone.Transport.loopEnd = (state.loopEnd / 1000) * state.duration
+            updateABSliderPos([state.loopStart, state.loopEnd])
         } else {
-            abSlider.current.sliderRef.style.display = "none"
+            abSlider.current.slider.style.display = "none"
             state.abloop = false
             state.loop = false
             loopImg.current!.src = loopIcon
@@ -1230,7 +1252,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             let start = 0
             if (state.abloop) {
                 start = state.loopStart
-                duration = state.loopEnd - state.loopStart
+                duration = ((state.loopEnd / 1000) * state.duration) - ((state.loopStart / 1000) * state.duration)
             }
             const audioBuffer = await render(start, duration)
             if (path.extname(savePath) === ".mp3") {
@@ -1568,7 +1590,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                         </div>
                         <div className="volume-container">
                             <img className="player-button" src={volumeIcon} ref={volumeRef} onClick={() => mute()} onMouseEnter={() => toggleHover("volume", true)} onMouseLeave={() => toggleHover("volume")} width="30" height="30"/>
-                            <Slider className="volume-slider" ref={volumeBar} onChange={(value) => volume(value)} min={0} max={1} step={0.05} defaultValue={1}/>
+                            <Slider className="volume-slider" trackClassName="volume-slider-track" thumbClassName="volume-slider-handle" ref={volumeBar} onChange={(value) => {updateVolumePos(value); volume(value)}} min={0} max={1} step={0.05} defaultValue={1}/>
                         </div>
                     </div>
                     <div className="player-row">
@@ -1592,8 +1614,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                         </div>
                         <img className="player-button" src={pitchIcon} ref={pitchImg} onClick={() => pitchPopup.current!.style.display === "flex" ? pitchPopup.current!.style.display = "none" : pitchPopup.current!.style.display = "flex"} width="30" height="30" onMouseEnter={() => toggleHover("pitch", true)} onMouseLeave={() => toggleHover("pitch")}/>
                         <div className="progress-container" onMouseUp={() => state.dragging = false}>
-                            <Slider className="progress-slider" ref={progressBar} min={0} max={1000} onBeforeChange={() => state.dragging = true} onChange={(value) => updateProgressText(value)} onAfterChange={(value) => seek(value / 10)} defaultValue={0}/>
-                            <Slider.Range className="ab-slider" ref={abSlider} min={0} max={1000} defaultValue={[0, 1000]} onBeforeChange={() => state.dragging = true} onChange={(value) => updateProgressTextAB(value)} onAfterChange={(value) => abloop(value)} style={({display: "none"})}/>
+                            <Slider className="progress-slider" trackClassName="progress-slider-track" thumbClassName="progress-slider-handle" ref={progressBar} min={0} max={1000} onBeforeChange={() => state.dragging = true} onChange={(value) => {updateSliderPos(value / 10); updateProgressText(value)}} onAfterChange={(value) => seek(value / 10)} defaultValue={0}/>
+                            <Slider className="ab-slider" trackClassName="ab-slider-track" thumbClassName="ab-slider-thumb" ref={abSlider} min={0} max={1000} defaultValue={[0, 1000]} onBeforeChange={() => state.dragging = true} onChange={(value) => {updateABSliderPos(value); updateProgressTextAB(value)}} onAfterChange={(value) => abloop(value)} pearling minDistance={1}/>
                         </div>
                         <img className="player-button" ref={loopImg} src={loopIcon} onClick={() => loop()} width="30" height="30" onMouseEnter={() => toggleHover("loop", true)} onMouseLeave={() => toggleHover("loop")}/>
                         <img className="player-button" ref={abLoopImg} src={abLoopIcon} onClick={() => toggleAB()} width="30" height="30" onMouseEnter={() => toggleHover("abloop", true)} onMouseLeave={() => toggleHover("abloop")}/>
