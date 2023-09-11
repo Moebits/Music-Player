@@ -39,9 +39,10 @@ ipcMain.handle("pitch-song", async (event, song: string, pitch: number) => {
   if (!fs.existsSync(songDest)) fs.mkdirSync(songDest, {recursive: true})
   const output = path.join(songDest, `./${name}_pitched${ext}`)
   if (output !== lastPitchedFile && fs.existsSync(lastPitchedFile)) fs.unlinkSync(lastPitchedFile)
-  let command = `"${soxPath ? soxPath : "sox"}" "${song}" "${output}" pitch ${pitch * 100}`
+  let command = `"${soxPath ? soxPath : "sox"}" "${functions.escapeQuotes(song)}" "${functions.escapeQuotes(output)}" pitch ${pitch * 100}`
   await exec(command).then((s: any) => s.stdout).catch((e: any) => e.stderr)
   lastPitchedFile = output
+  console.log(output)
   return output
 })
 

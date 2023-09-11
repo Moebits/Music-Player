@@ -186,4 +186,8 @@ export default class Functions {
             return Math.round(scaleFactor * 6)
         }
     }
+
+    public static escapeQuotes = (str: string) => {
+        return str.replace(/"/g, `"\\""`).replace(/'/g, `'\\''`)
+    }
 }
