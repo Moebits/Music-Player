@@ -33,6 +33,13 @@ It's basically the GUI version of my [Music Player Web](https://github.com/Tenpi
 
 Download the latest installer from the [releases](https://github.com/Tenpi/Music-Player/releases) tab. Updates can be installed automatically.
 
+### MacOS
+
+On MacOS unsigned applications won't open, run this to remove the quarantine flag.
+```
+xattr -d com.apple.quarantine /Applications/Music\ Player.app
+```
+
 ### Bugs and Requests
 
 Open an issue on my GitHub repository.
