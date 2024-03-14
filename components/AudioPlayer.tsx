@@ -795,6 +795,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 const element = document.querySelector(".player") as HTMLElement
                 let newHeight = window.innerHeight - event.pageY
                 if (newHeight < 100) newHeight = 100
+                if (newHeight > 200) return
                 element.style.height = `${newHeight}px`
             }
         }
