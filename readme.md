@@ -3,7 +3,7 @@
 <img src="assets/images/readme-light.png">
 
 This is a music player that can apply cool effects such as reversing, time stretching, and pitch shifting in real-time.
-It's basically the GUI version of my [Music Player Web](https://github.com/Tenpi/Music-Player-Web) site.
+It's basically the GUI version of my [Music Player Web](https://github.com/Moebits/musicplayer.moe) site.
 
 ### Features:
 - Play audio (MP3, WAV) and MIDI files
@@ -31,7 +31,7 @@ It's basically the GUI version of my [Music Player Web](https://github.com/Tenpi
 
 ### Installation
 
-Download the latest installer from the [releases](https://github.com/Tenpi/Music-Player/releases) tab. Updates can be installed automatically.
+Download the latest installer from the [releases](https://github.com/Moebits/Music-Player/releases) tab. Updates can be installed automatically.
 
 ### MacOS
 
@@ -46,6 +46,6 @@ Open an issue on my GitHub repository.
 
 ### Also See
 
-- [musicplayer.moe](https://github.com/Tenpi/musicplayer.moe)
-- [Photo Viewer](https://github.com/Tenpi/Photo-Viewer)
-- [Video Player](https://github.com/Tenpi/Video-Player)
+- [musicplayer.moe](https://github.com/Moebits/musicplayer.moe)
+- [Photo Viewer](https://github.com/Moebits/Photo-Viewer)
+- [Video Player](https://github.com/Moebits/Video-Player)
