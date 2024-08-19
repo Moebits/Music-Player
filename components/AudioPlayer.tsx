@@ -117,6 +117,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         ipcRenderer.on("open-file", openFile)
         ipcRenderer.on("invoke-play", invokePlay)
         ipcRenderer.on("change-play-state", changePlayState)
+        ipcRenderer.on("bitcrush", bitcrush)
         ipcRenderer.on("reverb", reverb)
         ipcRenderer.on("phaser", phaser)
         ipcRenderer.on("delay", delay)
@@ -134,6 +135,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             ipcRenderer.removeListener("open-file", openFile)
             ipcRenderer.removeListener("invoke-play", invokePlay)
             ipcRenderer.removeListener("change-play-state", changePlayState)
+            ipcRenderer.removeListener("bitcrush", bitcrush)
             ipcRenderer.removeListener("reverb", reverb)
             ipcRenderer.removeListener("phaser", phaser)
             ipcRenderer.removeListener("delay", delay)
@@ -172,6 +174,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         dragging: false,
         playHover: false,
         volumeHover: false,
+        sampleRate: 44100,
         reverbMix: 0,
         reverbDecay: 1.5,
         delayMix: 0,
@@ -278,12 +281,26 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     let player: Tone.Player
     let grain: Tone.GrainPlayer
     let synths = [] as Tone.PolySynth[]
-    if (typeof window !== "undefined") {
-        player = new Tone.Player(silence).sync().start().toDestination()
+    let audioNode: any
+    let bitcrusherNode: any
+    let gainNode: any
+
+    const initialize = async () => {
+        player = new Tone.Player(silence).sync().start()//.toDestination()
         grain = new Tone.GrainPlayer(silence).sync().start()
         grain.grainSize = 0.1
         grain.overlap = 0.1
+
+        // @ts-expect-error
+        audioNode = new Tone.ToneAudioNode()
+        gainNode = new Tone.Gain(1)
+        audioNode.input = player
+        audioNode.output = gainNode
+        audioNode.input.chain(audioNode.output)
+        audioNode.toDestination()
     }
+
+    if (typeof window !== "undefined") initialize()
 
     const removeEffect = (type: string) => {
         const index = state.effects.findIndex((e) => e?.type === type)
@@ -314,13 +331,17 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (state.midi) {
                 if (synths.length) synths.forEach((s) => s.chain(...[...nodes, Tone.Destination]))
             } else {
-                current.chain(...[...nodes, Tone.Destination])
+                audioNode.input = current
+                audioNode.input.chain(...[...nodes, audioNode.output])
+                //current.chain(...[...nodes, Tone.Destination])
             }
         } else {
             if (state.midi) {
                 if (synths.length) synths.forEach((s) => s.toDestination())
             } else {
-                current.toDestination()
+                audioNode.input = current
+                audioNode.input.chain(audioNode.output)
+                //current.toDestination()
             }
         }
     }
@@ -1456,6 +1477,26 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                     }
                 }
             }
+        }
+    }
+
+    const bitcrush = async (event: any, effect?: any, noApply?: boolean) => {
+        state = {...state, ...effect}
+        if (state.sampleRate === 100) {
+            removeEffect("bitcrush")
+        } else {
+            if (!bitcrusherNode) {
+                const context = Tone.getContext()
+                const bitcrusherSource = await ipcRenderer.invoke("get-bitcrusher-source")
+                const bitcrusherBlob = new Blob([bitcrusherSource], {type: "text/javascript"})
+                const bitcrusherURL = window.URL.createObjectURL(bitcrusherBlob)
+                await context.addAudioWorkletModule(bitcrusherURL, "bitcrusher")
+                bitcrusherNode = context.createAudioWorkletNode("bitcrush-processor")
+            }
+            bitcrusherNode.parameters.get("sampleRate").value = functions.logSlider2(state.sampleRate, 100, 44100)
+            if (noApply) return bitcrusherNode
+            pushEffect("bitcrush", bitcrusherNode)
+            applyEffects()
         }
     }
 
