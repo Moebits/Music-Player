@@ -156,10 +156,18 @@ ipcMain.handle("get-recent", () => {
 
 ipcMain.handle("update-recent", (event, info: any) => {
   let recent = store.get("recent", []) as any[]
-  while (recent.length > 80) recent.pop()
+  while (recent.length > 160) recent.pop()
   const dupe = functions.findDupe(recent, info)
   if (dupe !== -1) recent.splice(dupe, 1)
   recent.unshift(info)
+  store.set("recent", recent)
+  window?.webContents.send("update-recent-gui")
+})
+
+ipcMain.handle("remove-recent", (event, info: any) => {
+  let recent = store.get("recent", []) as any[]
+  const dupe = functions.findDupe(recent, info)
+  if (dupe !== -1) recent.splice(dupe, 1)
   store.set("recent", recent)
   window?.webContents.send("update-recent-gui")
 })
@@ -210,6 +218,10 @@ ipcMain.handle("copy-loop", async (event) => {
 
 ipcMain.handle("trigger-paste", async (event) => {
   window?.webContents.send("trigger-paste")
+})
+
+ipcMain.handle("trigger-remove", async (event) => {
+  window?.webContents.send("trigger-remove")
 })
 
 ipcMain.handle("change-play-state", () => {

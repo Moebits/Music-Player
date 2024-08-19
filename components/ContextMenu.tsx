@@ -40,11 +40,16 @@ const ContextMenu: React.FunctionComponent = (props) => {
         ipcRenderer.invoke("paste-loop")
     }
 
+    const remove = () => {
+        ipcRenderer.invoke("trigger-remove")
+    }
+
     if (visible) {
         return (
             <section ref={contextMenu} className="context-menu" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
                 <button className="context-button" onClick={() => copy()}>Copy</button>
                 <button className="context-button" onClick={() => paste()}>Paste</button>
+                <button className="context-button" onClick={() => remove()}>Remove</button>
                 <button className="context-button" onClick={() => copyLoop()}>Copy Loop</button>
                 <button className="context-button" onClick={() => pasteLoop()}>Paste Loop</button>
             </section>

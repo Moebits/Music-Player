@@ -15,6 +15,7 @@ const RecentPlays: React.FunctionComponent = (props) => {
     const [pageIndex, setPageIndex] = useState(0)
     const [pageLeftHover, setPageLeftHover] = useState(false)
     const [pageRightHover, setPageRightHover] = useState(false)
+    const [deleteQueue, setDeleteQueue] = useState({})
 
     useEffect(() => {
         const updateRecentGUI = async () => {
@@ -40,6 +41,16 @@ const RecentPlays: React.FunctionComponent = (props) => {
         }
     }, [])
 
+    useEffect(() => {
+        const triggerRemove = async () => {
+            ipcRenderer.invoke("remove-recent", deleteQueue)
+        }
+        ipcRenderer.on("trigger-remove", triggerRemove)
+        return () => {
+            ipcRenderer.removeListener("trigger-remove", triggerRemove)
+        }
+    }, [deleteQueue])
+
     const invokePlay = (info: any) => {
         ipcRenderer.invoke("invoke-play", info)
     }
@@ -56,14 +67,14 @@ const RecentPlays: React.FunctionComponent = (props) => {
             if (!pages[pageIndex]?.[i]) {
                 row1.push(<img className="recent-square" src={square}/>)
             } else {
-                row1.push(<img className={`${checkYT(pages[pageIndex][i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(pages[pageIndex][i])} src={pages[pageIndex][i].songCover}/>)
+                row1.push(<img className={`${checkYT(pages[pageIndex][i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(pages[pageIndex][i])} src={pages[pageIndex][i].songCover} onContextMenu={() => setDeleteQueue(pages[pageIndex][i])}/>)
             }
         }
         for (let i = 4; i < 8; i++) {
             if (!pages[pageIndex]?.[i]) {
                 row2.push(<img className="recent-square" src={square}/>)
             } else {
-                row2.push(<img className={`${checkYT(pages[pageIndex][i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(pages[pageIndex][i])} src={pages[pageIndex][i].songCover}/>)
+                row2.push(<img className={`${checkYT(pages[pageIndex][i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(pages[pageIndex][i])} src={pages[pageIndex][i].songCover} onContextMenu={() => setDeleteQueue(pages[pageIndex][i])}/>)
             }
         }
         return (

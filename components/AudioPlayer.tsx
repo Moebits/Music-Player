@@ -799,6 +799,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 element.style.height = `${newHeight}px`
             }
         }
+        // @ts-ignore
         return window.clearInterval()
     }, [])
 
@@ -1038,7 +1039,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (Tone.Transport.state === "paused") Tone.Transport.start()
         applyAB(state.duration)
         if (Tone.Transport.loopStart === Tone.Transport.loopEnd) Tone.Transport.loopStart = (Tone.Transport.loopEnd as number) - 1
-        if ((Tone.Transport.seconds >= Tone.Transport.loopStart) && (Tone.Transport.seconds <= Tone.Transport.loopEnd)) return
+        if ((Tone.Transport.seconds >= Number(Tone.Transport.loopStart)) && (Tone.Transport.seconds <= Number(Tone.Transport.loopEnd))) return
         let val = Number(Tone.Transport.loopStart)
         if (val < 0) val = 0
         if (val > state.duration - 1) val = state.duration - 1
@@ -1063,10 +1064,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         } else {
             abSlider.current.slider.style.display = "none"
             state.abloop = false
-            state.loop = false
-            loopImg.current!.src = loopIcon
             abLoopImg.current!.src = abLoopIcon
-            Tone.Transport.loop = false
+            Tone.Transport.loopStart = 0
+            Tone.Transport.loopEnd = state.duration
         }
         updateMetadata()
         saveState()
