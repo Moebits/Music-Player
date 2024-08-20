@@ -1,7 +1,7 @@
 class LFOProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
       return [
-          {name: "lfoRate", defaultValue: 1/4, minValue: 0, maxValue: 100}, 
+          {name: "lfoRate", defaultValue: 1, minValue: 0, maxValue: 100}, 
           {name: "bpm", defaultValue: 150, minValue: 0, maxValue: 1000}
       ]
   }
@@ -9,7 +9,7 @@ class LFOProcessor extends AudioWorkletProcessor {
   constructor() {
     super()
     this.phase = 0
-    this.lfoRate = 0
+    this.lfoRate = 1
     this.bpm = 150
     this.lfoShape = "square"
     this.port.onmessage = (event) => {

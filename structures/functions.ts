@@ -2,6 +2,7 @@ import playTiny from "../assets/icons/playTiny.png"
 import playTinyHover from "../assets/icons/playTiny-hover.png"
 import pauseTiny from "../assets/icons/pauseTiny.png"
 import pauseTinyHover from "../assets/icons/pauseTiny-hover.png"
+import {guess} from "web-audio-beat-detector"
 import fs from "fs"
 import path from "path"
 
@@ -196,5 +197,14 @@ export default class Functions {
         scaleFactor = Math.max(0.25, scaleFactor)
         scaleFactor = Math.min(4, scaleFactor)
         return scaleFactor
+    }
+
+    public static getBPM = async (audioBuffer: AudioBuffer) => {
+        return guess(audioBuffer)
+    }
+
+    public static fractionEval = (fraction: string) => {
+        const [numerator, denominator] = fraction.split("/").map(Number)
+        return numerator / denominator
     }
 }

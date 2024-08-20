@@ -53,6 +53,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const speedCheckbox = useRef(null) as React.RefObject<HTMLInputElement>
     const pitchLFOCheckbox = useRef(null) as React.RefObject<HTMLInputElement>
     const pitchBar = useRef(null) as React.RefObject<HTMLInputElement>
+    const pitchLFOBar = useRef(null) as React.RefObject<HTMLInputElement>
     const secondsProgress = useRef(null) as React.RefObject<HTMLSpanElement>
     const secondsTotal = useRef(null) as React.RefObject<HTMLSpanElement>
     const abSlider = useRef(null) as React.RefObject<any>
@@ -203,6 +204,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         mouseFlag: false,
         savedLoop: [0, 1000],
         pitchLFO: false,
+        pitchLFORate: 1,
         stepFlag: false
     }
 
@@ -218,6 +220,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (saved.pitchLFO !== undefined) {
             state.pitchLFO = saved.pitchLFO
             pitchLFOCheckbox.current!.checked = state.pitchLFO
+        }
+        if (saved.pitchLFORate !== undefined) {
+            state.pitchLFORate = saved.pitchLFORate
         }
         if (saved.speed !== undefined) {
             state.speed = saved.speed
@@ -252,7 +257,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             }
         }
         if (synthSaved.wave !== undefined) state.wave = synthSaved.wave
-        if (synthSaved.attack !== undefined) state.attack = synthSaved.attack 
+        if (synthSaved.attack !== undefined) state.attack = synthSaved.attack
         if (synthSaved.decay !== undefined) state.decay = synthSaved.decay
         if (synthSaved.sustain !== undefined) state.sustain = synthSaved.sustain 
         if (synthSaved.release !== undefined) state.release = synthSaved.release 
@@ -274,17 +279,21 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const saveState = () => {
-        ipcRenderer.invoke("save-state", {reverse: state.reverse, pitch: state.pitch, speed: state.speed, preservesPitch: state.preservesPitch, pitchLFO: state.pitchLFO, loop: state.loop, abloop: state.abloop, loopStart: state.loopStart, loopEnd: state.loopEnd})
+        ipcRenderer.invoke("save-state", {reverse: state.reverse, pitch: state.pitch, speed: state.speed, preservesPitch: state.preservesPitch, pitchLFO: state.pitchLFO, pitchLFORate: state.pitchLFORate, loop: state.loop, abloop: state.abloop, loopStart: state.loopStart, loopEnd: state.loopEnd})
     }
 
     let player: Tone.Player
     let grain: Tone.GrainPlayer
     let synths = [] as Tone.PolySynth[]
     let audioNode: any
-    let soundtouchNode: any
-    let soundtouchURL = ""
-    let bitcrusherNode: any
+    let effectNode: any
     let gainNode: any
+    let soundtouchNode: any
+    let staticSoundtouchNode: any
+    let soundtouchURL = ""
+    let lfoNode: any
+    let lfoURL = ""
+    let bitcrusherNode: any
 
     const initialize = async () => {
         player = new Tone.Player(silence).sync().start()//.toDestination()
@@ -298,13 +307,24 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         soundtouchURL = window.URL.createObjectURL(soundtouchBlob)
         await context.addAudioWorkletModule(soundtouchURL, "soundtouch")
         soundtouchNode = context.createAudioWorkletNode("soundtouch-processor")
+        staticSoundtouchNode = context.createAudioWorkletNode("soundtouch-processor")
+        const lfoSource = await ipcRenderer.invoke("get-lfo-source")
+        const lfoBlob = new Blob([lfoSource], {type: "text/javascript"})
+        lfoURL = window.URL.createObjectURL(lfoBlob)
+        await context.addAudioWorkletModule(lfoURL, "lfo")
+        lfoNode = context.createAudioWorkletNode("lfo-processor", {numberOfInputs: 2, outputChannelCount: [2]})
+        gainNode = new Tone.Gain(1)
+
         // @ts-expect-error
         audioNode = new Tone.ToneAudioNode()
-        gainNode = new Tone.Gain(1)
         audioNode.input = player
-        audioNode.workletNode = soundtouchNode
-        audioNode.output = gainNode
-        audioNode.input.chain(audioNode.workletNode, audioNode.output)
+        audioNode.output = gainNode.input
+        audioNode.input.chain(soundtouchNode, audioNode.output)
+        // @ts-expect-error
+        effectNode = new Tone.ToneAudioNode()
+        effectNode.input = player
+        effectNode.output = gainNode.input
+        effectNode.input.chain(effectNode.output)
         audioNode.toDestination()
     }
     if (typeof window !== "undefined") initialize()
@@ -330,23 +350,32 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const applyEffects = () => {
         player.disconnect()
         grain.disconnect()
+        soundtouchNode.disconnect()
+        staticSoundtouchNode.disconnect()
+        lfoNode.disconnect()
         if (synths.length) synths.forEach((s) => s.disconnect())
         const nodes = state.effects.map((e) => e?.node).filter(Boolean)
         const current = state.preservesPitch ? grain : player
-        if (nodes[0]) {
-            nodes.forEach((n) => n.disconnect())
-            if (state.midi) {
-                if (synths.length) synths.forEach((s) => s.chain(...[...nodes, Tone.Destination]))
-            } else {
-                audioNode.input = current
-                audioNode.input.chain(...[audioNode.workletNode, ...nodes, audioNode.output])
-            }
+        if (nodes[0]) nodes.forEach((n) => n.disconnect())
+        if (state.midi) {
+            if (synths.length) synths.forEach((s) => s.chain(...[...nodes, Tone.Destination]))
         } else {
-            if (state.midi) {
-                if (synths.length) synths.forEach((s) => s.toDestination())
+            if (state.pitchLFO) {
+                audioNode.input = current
+                effectNode.input = current
+                audioNode.input.connect(staticSoundtouchNode)
+                effectNode.input.connect(soundtouchNode)
+                staticSoundtouchNode.connect(lfoNode, 0, 0)
+                soundtouchNode.connect(lfoNode, 0, 1)
+                let currentNode = lfoNode
+                for (let i = 0; i < nodes.length; i++) {
+                    currentNode.connect(nodes[i])
+                    currentNode = nodes[i]
+                }
+                currentNode.connect(audioNode.output)
             } else {
                 audioNode.input = current
-                audioNode.input.chain(audioNode.workletNode, audioNode.output)
+                audioNode.input.chain(...[soundtouchNode, ...nodes, audioNode.output])
             }
         }
     }
@@ -375,6 +404,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (!state.midi) {
                 const current = state.preservesPitch ? grain : player
                 state.duration = current.buffer.duration / current.playbackRate
+
+                functions.getBPM(current.buffer.get()!).then(({bpm}) => {
+                    state.bpm = bpm
+                    lfoNode.parameters.get("bpm").value = bpm
+                })
             }
         }
         secondsTotal.current!.innerText = functions.formatSeconds(state.duration)
@@ -535,99 +569,42 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         speed()
     }
 
+    const pitch = async (value?: number | string, applyState?: any) => {
+        if (value !== undefined) state.pitch = Number(value) 
+        if (state.pitch === 0) {
+            pitchImg.current!.src = pitchIcon
+        } else {
+            pitchImg.current!.src = pitchActiveIcon
+        }
+        if (state.midi) {
+            if (!applyState) await playMIDI()
+        } else {
+            soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(state.pitch)
+        }
+        saveState()
+    }
+
+    const pitchLFOStyle = () => {
+        if (!pitchLFOBar.current) return
+        if (state.pitchLFO) {
+            pitchLFOBar.current.style.display = "flex"
+        } else {
+            pitchLFOBar.current.style.display = "none"
+        }
+    }
+
     const pitchLFO = (value?: boolean) => {
         state.pitchLFO = value !== undefined ? value : !state.pitchLFO
         pitchLFOCheckbox.current!.checked = state.pitchLFO
+        pitchLFOStyle()
         saveState()
+        applyEffects()
     }
 
-    const updateSliderPos = (value: number) => {
-        if (!progressBar.current) return
-        const width = progressBar.current.slider.clientWidth - 15
-        const valuePx = (value / 100) * width
-        progressBar.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
-        progressBar.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: 0px`
-        progressBar.current.slider.childNodes[2].ariaValueNow = `${value * 10}`
-        progressBar.current.slider.childNodes[2].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
-    }
-
-    const updateVolumePos = (value: number) => {
-        value *= 100
-        if (!volumeBar.current) return
-        const width = volumeBar.current.slider.clientWidth
-        const valuePx = (value / 100) * width
-        volumeBar.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
-        volumeBar.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: 0px`
-        volumeBar.current.slider.childNodes[2].ariaValueNow = `${value * 10}`
-        volumeBar.current.slider.childNodes[2].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
-    }
-
-    const updateABSliderPos = (value: number[]) => {
-        value = value.map((v) => v / 10)
-        if (!abSlider.current) return
-        const width = abSlider.current.slider.clientWidth - 20
-        const valuePx = (value[0] / 100) * width
-        const valuePx2 = (value[1] / 100) * width
-        abSlider.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
-        abSlider.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: ${width - valuePx2}px`
-        abSlider.current.slider.childNodes[2].style = `position: absolute; left: ${valuePx2}px; right: 0px`
-        abSlider.current.slider.childNodes[3].ariaValueNow = `${value[0] * 10}`
-        abSlider.current.slider.childNodes[3].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
-        abSlider.current.slider.childNodes[4].ariaValueNow = `${value[1] * 10}`
-        abSlider.current.slider.childNodes[4].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx2}px`
-    }
-
-    const updateBarPos = () => {
-        speedBar.current!.value = String(state.speed)
-        pitchBar.current!.value = String(state.pitch)
-    }
-
-    const reset = async () => {
-        const {song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, loop} = state
-        state = {...initialState, song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, loop}
-        grain.playbackRate = state.speed
-        player.playbackRate = state.speed
-        soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(state.pitch)
-        speedBar.current!.value = String(state.speed)
-        speedCheckbox.current!.checked = !state.preservesPitch
-        pitchLFOCheckbox.current!.checked = state.pitchLFO
-        pitchBar.current!.value = String(state.pitch)
-        grain.reverse = state.reverse
-        player.reverse = state.reverse
-        Tone.Transport.loop = state.loop
-        updateABSliderPos([0, 1000])
-        abSlider.current.slider.style.display = "none";
-        speedImg.current!.src = speedIcon
-        loopImg.current!.src = state.loop ? loopActiveIcon : loopIcon
-        reverseImg.current!.src = reverseIcon
-        pitchImg.current!.src = pitchIcon
-        abLoopImg.current!.src = abLoopIcon
-        duration()
-        updateMetadata()
-        stop()
-        play()
-        ipcRenderer.invoke("reset-effects")
-        setTimeout(() => {
-            applyEffects()
-        }, 100)
-        saveState()
-    }
-
-    const loop = async (value?: boolean) => {
-        let condition = value !== undefined ? value === false : state.loop === true
-        if (condition) {
-            loopImg.current!.src = loopIcon
-            state.loop = false
-            Tone.Transport.loop = false
-            if (state.abloop) toggleAB()
-        } else {
-            loopImg.current!.src = loopActiveIcon
-            state.loop = true
-            Tone.Transport.loop = true
-            Tone.Transport.loopStart = state.abloop ? (state.loopStart / 1000) * state.duration : 0
-            Tone.Transport.loopEnd = state.abloop ? (state.loopEnd / 1000) * state.duration : state.duration
-        }
-        updateMetadata()
+    const pitchLFORate = async (value?: number | string) => {
+        if (value !== undefined) state.pitchLFORate = Number(value)
+        lfoNode.parameters.get("lfoRate").value = state.pitchLFORate
+        lfoNode.port.postMessage({lfoShape: state.wave})
         saveState()
     }
 
@@ -684,6 +661,99 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             (document.querySelector(".progress-slider > .rc-slider-track") as any).style.backgroundColor = "#991fbe";
             (document.querySelector(".progress-slider > .rc-slider-rail") as any).style.backgroundColor = "black"
         }
+    }
+
+    const updateSliderPos = (value: number) => {
+        if (!progressBar.current) return
+        const width = progressBar.current.slider.clientWidth - 15
+        const valuePx = (value / 100) * width
+        progressBar.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
+        progressBar.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: 0px`
+        progressBar.current.slider.childNodes[2].ariaValueNow = `${value * 10}`
+        progressBar.current.slider.childNodes[2].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
+    }
+
+    const updateVolumePos = (value: number) => {
+        value *= 100
+        if (!volumeBar.current) return
+        const width = volumeBar.current.slider.clientWidth
+        const valuePx = (value / 100) * width
+        volumeBar.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
+        volumeBar.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: 0px`
+        volumeBar.current.slider.childNodes[2].ariaValueNow = `${value * 10}`
+        volumeBar.current.slider.childNodes[2].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
+    }
+
+    const updateABSliderPos = (value: number[]) => {
+        value = value.map((v) => v / 10)
+        if (!abSlider.current) return
+        const width = abSlider.current.slider.clientWidth - 20
+        const valuePx = (value[0] / 100) * width
+        const valuePx2 = (value[1] / 100) * width
+        abSlider.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
+        abSlider.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: ${width - valuePx2}px`
+        abSlider.current.slider.childNodes[2].style = `position: absolute; left: ${valuePx2}px; right: 0px`
+        abSlider.current.slider.childNodes[3].ariaValueNow = `${value[0] * 10}`
+        abSlider.current.slider.childNodes[3].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
+        abSlider.current.slider.childNodes[4].ariaValueNow = `${value[1] * 10}`
+        abSlider.current.slider.childNodes[4].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx2}px`
+    }
+
+    const updateBarPos = () => {
+        speedBar.current!.value = String(state.speed)
+        pitchBar.current!.value = String(state.pitch)
+    }
+
+    const reset = async () => {
+        const {song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, loop} = state
+        state = {...initialState, song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, loop}
+        grain.playbackRate = state.speed
+        player.playbackRate = state.speed
+        soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(state.pitch)
+        lfoNode.parameters.get("lfoRate").value = state.pitchLFORate
+        lfoNode.port.postMessage({lfoShape: state.wave})
+        speedBar.current!.value = String(state.speed)
+        speedCheckbox.current!.checked = !state.preservesPitch
+        pitchLFOCheckbox.current!.checked = state.pitchLFO
+        pitchBar.current!.value = String(state.pitch)
+        grain.reverse = state.reverse
+        player.reverse = state.reverse
+        Tone.Transport.loop = state.loop
+        updateABSliderPos([0, 1000])
+        abSlider.current.slider.style.display = "none";
+        speedImg.current!.src = speedIcon
+        loopImg.current!.src = state.loop ? loopActiveIcon : loopIcon
+        reverseImg.current!.src = reverseIcon
+        pitchImg.current!.src = pitchIcon
+        abLoopImg.current!.src = abLoopIcon
+        pitchLFOStyle()
+        duration()
+        updateMetadata()
+        stop()
+        play()
+        ipcRenderer.invoke("reset-effects")
+        setTimeout(() => {
+            applyEffects()
+        }, 100)
+        saveState()
+    }
+
+    const loop = async (value?: boolean) => {
+        let condition = value !== undefined ? value === false : state.loop === true
+        if (condition) {
+            loopImg.current!.src = loopIcon
+            state.loop = false
+            Tone.Transport.loop = false
+            if (state.abloop) toggleAB()
+        } else {
+            loopImg.current!.src = loopActiveIcon
+            state.loop = true
+            Tone.Transport.loop = true
+            Tone.Transport.loopStart = state.abloop ? (state.loopStart / 1000) * state.duration : 0
+            Tone.Transport.loopEnd = state.abloop ? (state.loopEnd / 1000) * state.duration : state.duration
+        }
+        updateMetadata()
+        saveState()
     }
 
     useEffect(() => {
@@ -878,21 +948,6 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
     }
 
-    const pitch = async (value?: number | string, applyState?: any) => {
-        if (value !== undefined) state.pitch = Number(value) 
-        if (state.pitch === 0) {
-            pitchImg.current!.src = pitchIcon
-        } else {
-            pitchImg.current!.src = pitchActiveIcon
-        }
-        if (state.midi) {
-            if (!applyState) await playMIDI()
-        } else {
-            soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(state.pitch)
-        }
-        saveState()
-    }
-
     const updateMetadata = () => {
         songTitle.current!.innerText = state.songName
         songCover.current!.src = state.songCover
@@ -902,6 +957,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const updateSynth = (event: any, newState: any) => {
         state = {...state, ...newState}
         if (state.midi) playMIDI()
+        lfoNode.port.postMessage({lfoShape: state.wave})
     }
 
     const playMIDI = async (applyState?: any) => {
@@ -1191,12 +1247,37 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 const audioNode = new Tone.ToneAudioNode()
                 gainNode = new Tone.Gain(1)
                 audioNode.input = current
-                audioNode.output = gainNode
+                audioNode.output = gainNode.input
                 await offlineContext.addAudioWorkletModule(soundtouchURL, "soundtouch")
                 const soundtouchNode = offlineContext.createAudioWorkletNode("soundtouch-processor") as any
+                const staticSoundtouchNode = offlineContext.createAudioWorkletNode("soundtouch-processor") as any
                 soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(state.pitch)
-                audioNode.workletNode = soundtouchNode
-                audioNode.input.chain(...[audioNode.workletNode, ...effectNodes, audioNode.output, offlineContext.destination]).start()
+                
+                if (state.pitchLFO) {
+                    // @ts-expect-error
+                    const effectNode = new Tone.ToneAudioNode()
+                    effectNode.input = current
+                    effectNode.output = gainNode.input
+                    await offlineContext.addAudioWorkletModule(lfoURL, "lfo")
+                    const lfoNode = offlineContext.createAudioWorkletNode("lfo-processor", {numberOfInputs: 2, outputChannelCount: [2]}) as any
+                    lfoNode.parameters.get("bpm").value = state.bpm
+                    lfoNode.parameters.get("lfoRate").value = state.pitchLFORate
+                    lfoNode.port.postMessage({lfoShape: state.wave})
+                    audioNode.input.connect(staticSoundtouchNode)
+                    effectNode.input.connect(soundtouchNode)
+                    staticSoundtouchNode.connect(lfoNode, 0, 0)
+                    soundtouchNode.connect(lfoNode, 0, 1)
+                    let currentNode = lfoNode
+                    for (let i = 0; i < effectNodes.length; i++) {
+                        currentNode.connect(effectNodes[i])
+                        currentNode = effectNodes[i]
+                    }
+                    currentNode.connect(audioNode.output)
+                    audioNode.connect(offlineContext.destination)
+                    audioNode.input.start()
+                } else {
+                    audioNode.input.chain(...[soundtouchNode, ...effectNodes, audioNode.output, offlineContext.destination]).start()
+                }
             }
             offlineContext.transport.start(start)
         }, duration, 2, 44100)
@@ -1628,6 +1709,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                                 <div className="pitch-checkbox-container">
                                     <p className="speed-text">LFO?</p><input type="checkbox" ref={pitchLFOCheckbox} onChange={() => pitchLFO()} className="pitch-checkbox"/>
                                 </div>
+                                <input type="range" ref={pitchLFOBar} onChange={(event) => pitchLFORate(event.target.value)} min="0" max="5" step="1" defaultValue="1" className="pitch-bar"/>
                             </div>
                         </div>
                         <img className="player-button" src={pitchIcon} ref={pitchImg} onClick={() => pitchPopup.current!.style.display === "flex" ? pitchPopup.current!.style.display = "none" : pitchPopup.current!.style.display = "flex"} width="30" height="30" onMouseEnter={() => toggleHover("pitch", true)} onMouseLeave={() => toggleHover("pitch")}/>
