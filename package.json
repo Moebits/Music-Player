@@ -36,10 +36,8 @@
       },
       "category": "public.app-category.music",
       "extraFiles": [
-        "sox/sox",
         "structures/bitcrusher.js",
         "structures/lfo.js",
-        "structures/soundtouch-node.js",
         "structures/soundtouch.js"
       ]
     },
@@ -57,12 +55,8 @@
         "arch": "x64"
       },
       "extraFiles": [
-        "sox/sox.exe",
-        "sox/libmad-0.dll",
-        "sox/libmp3lame-0.dll",
         "structures/bitcrusher.js",
         "structures/lfo.js",
-        "structures/soundtouch-node.js",
         "structures/soundtouch.js"
       ]
     },
@@ -82,10 +76,8 @@
       },
       "category": "Audio",
       "extraFiles": [
-        "sox/sox",
         "structures/bitcrusher.js",
         "structures/lfo.js",
-        "structures/soundtouch-node.js",
         "structures/soundtouch.js"
       ]
     },

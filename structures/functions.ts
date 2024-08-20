@@ -190,4 +190,11 @@ export default class Functions {
     public static escapeQuotes = (str: string) => {
         return str.replace(/"/g, `"\\""`).replace(/'/g, `'\\''`)
     }
+
+    public static semitonesToScale = (semitones: number) => {
+        var scaleFactor = Math.pow(2, semitones / 12)
+        scaleFactor = Math.max(0.25, scaleFactor)
+        scaleFactor = Math.min(4, scaleFactor)
+        return scaleFactor
+    }
 }
