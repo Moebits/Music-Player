@@ -1,6 +1,6 @@
 ## Music Player
-
-<img src="assets/images/readme-light.png">
+   
+<img src="assets/images/readme.png">
 
 This is a music player that can apply cool effects such as reversing, time stretching, and pitch shifting in real-time.
 It's basically the GUI version of my [Music Player Web](https://github.com/Moebits/musicplayer.moe) site.
