@@ -24,26 +24,22 @@ let filePath = ""
 const youtube = new Youtube()
 const soundcloud = new Soundcloud()
 
-let soxPath = undefined as any
-if (process.platform === "darwin" || process.platform === "linux") soxPath = path.join(app.getAppPath(), "../../sox/sox")
-if (process.platform === "win32") soxPath = path.join(app.getAppPath(), "../../sox/sox.exe")
-if (!fs.existsSync(soxPath)) soxPath = path.join(__dirname, "../sox/sox")
+let workletPath = path.join(app.getAppPath(), "../../structures")
+if (!fs.existsSync(workletPath)) workletPath = path.join(__dirname, "../structures")
 
-let lastPitchedFile = ""
+ipcMain.handle("get-bitcrusher-source", () => {
+  let bitcrusherPath = path.join(workletPath, "bitcrusher.js")
+  return fs.readFileSync(bitcrusherPath).toString()
+})
 
-ipcMain.handle("pitch-song", async (event, song: string, pitch: number) => {
-  if (song.startsWith("file:///")) song = song.replace("file:///", "")
-  const ext = path.extname(song)
-  const name = path.basename(song, ext)
-  const songDest = path.join(app.getAppPath(), `../assets/audio/`)
-  if (!fs.existsSync(songDest)) fs.mkdirSync(songDest, {recursive: true})
-  const output = path.join(songDest, `./${name}_pitched${ext}`)
-  if (output !== lastPitchedFile && fs.existsSync(lastPitchedFile)) fs.unlinkSync(lastPitchedFile)
-  let command = `"${soxPath ? soxPath : "sox"}" "${functions.escapeQuotes(song)}" "${functions.escapeQuotes(output)}" pitch ${pitch * 100}`
-  await exec(command).then((s: any) => s.stdout).catch((e: any) => e.stderr)
-  lastPitchedFile = output
-  console.log(output)
-  return output
+ipcMain.handle("get-lfo-source", () => {
+  let lfoPath = path.join(workletPath, "lfo.js")
+  return fs.readFileSync(lfoPath).toString()
+})
+
+ipcMain.handle("get-soundtouch-source", () => {
+  let soundtouchPath = path.join(workletPath, "soundtouch.js")
+  return fs.readFileSync(soundtouchPath).toString()
 })
 
 ipcMain.handle("get-synth-state", () => {
@@ -113,6 +109,10 @@ ipcMain.handle("delay", (event, state: any) => {
 
 ipcMain.handle("reverb", (event, state: any) => {
   window?.webContents.send("reverb", state)
+})
+
+ipcMain.handle("bitcrush", (event, state: any) => {
+  window?.webContents.send("bitcrush", state)
 })
 
 ipcMain.handle("audio-effects", () => {

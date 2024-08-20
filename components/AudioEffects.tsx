@@ -6,6 +6,7 @@ import "../styles/audioeffects.less"
 const AudioEffects: React.FunctionComponent = (props) => {
     const [visible, setVisible] = useState(false)
     const [hover, setHover] = useState(false)
+    const ref0 = useRef(null)
     const ref1 = useRef(null)
     const ref2 = useRef(null)
     const ref3 = useRef(null)
@@ -15,6 +16,7 @@ const AudioEffects: React.FunctionComponent = (props) => {
     const ref7 = useRef(null)
 
     const initialState = {
+        sampleRate: 100,
         reverbMix: 0,
         reverbDecay: 1.5,
         delayMix: 0,
@@ -28,6 +30,7 @@ const AudioEffects: React.FunctionComponent = (props) => {
 
     const reset = () => {
         setState(initialState)
+        ipcRenderer.invoke("bitcrush", initialState)
         ipcRenderer.invoke("reverb", initialState)
         ipcRenderer.invoke("delay", initialState)
         ipcRenderer.invoke("phaser", initialState)
@@ -53,6 +56,12 @@ const AudioEffects: React.FunctionComponent = (props) => {
 
     const changeState = (type: string, value: number) => {
         switch(type) {
+            case "sampleRate":
+                setState((prev) => {
+                    return {...prev, sampleRate: value}
+                })
+                ipcRenderer.invoke("bitcrush", {...state, sampleRate: value})
+                break
             case "reverbMix":
                 setState((prev) => {
                     return {...prev, reverbMix: value}
@@ -122,6 +131,10 @@ const AudioEffects: React.FunctionComponent = (props) => {
                             <p className="effects-title">Audio Effects</p>
                         </div>
                         <div className="effects-row-container">
+                            <div className="effects-row">
+                                <p className="effects-text">Sample Rate: </p>
+                                <Slider ref={ref0} className="fx-slider" trackClassName="fx-slider-track" thumbClassName="fx-slider-thumb" onChange={(value) => {changeState("sampleRate", value); updatePos(value, ref0, 100)}} min={0} max={100} step={1} value={state.sampleRate}/>
+                            </div>
                             <div className="effects-row">
                                 <p className="effects-text">Reverb Mix: </p>
                                 <Slider ref={ref1} className="fx-slider" trackClassName="fx-slider-track" thumbClassName="fx-slider-thumb" onChange={(value) => {changeState("reverbMix", value); updatePos(value, ref1, 1)}} min={0} max={1} step={0.1} value={state.reverbMix}/>
