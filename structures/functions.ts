@@ -75,7 +75,6 @@ export default class Functions {
         const maxValue = Math.log(max)
         const scale = (maxValue - minValue) / (maxPos - minPos)
         const value = Math.exp(minValue + scale * (position - minPos))
-        console.log(value)
         return value
     }
 

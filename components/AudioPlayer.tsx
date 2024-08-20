@@ -369,7 +369,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 soundtouchNode.connect(lfoNode, 0, 1)
                 let currentNode = lfoNode
                 for (let i = 0; i < nodes.length; i++) {
-                    currentNode.connect(nodes[i])
+                    const node = nodes[i] instanceof Tone.ToneAudioNode ? nodes[i].input : nodes[i]
+                    currentNode.connect(node)
                     currentNode = nodes[i]
                 }
                 currentNode.connect(audioNode.output)
@@ -1269,7 +1270,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                     soundtouchNode.connect(lfoNode, 0, 1)
                     let currentNode = lfoNode
                     for (let i = 0; i < effectNodes.length; i++) {
-                        currentNode.connect(effectNodes[i])
+                        const node = effectNodes[i] instanceof Tone.ToneAudioNode ? effectNodes[i].input : effectNodes[i]
+                        currentNode.connect(node)
                         currentNode = effectNodes[i]
                     }
                     currentNode.connect(audioNode.output)
