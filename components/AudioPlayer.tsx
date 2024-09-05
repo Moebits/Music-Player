@@ -1145,7 +1145,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (localState.abloop !== false) {
             editCode += "-loop"
         }
-        let effectNodes = []
+        let effectNodes = [] as any
         if (localState.reverbMix !== 0) {
             const verb = await reverb(null, localState, true) as Tone.Reverb
             effectNodes.push(verb)
@@ -1197,7 +1197,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (localState.abloop !== false) {
             editCode += "-loop"
         }
-        let effectNodes = []
+        let effectNodes = [] as any
         if (localState.reverbMix !== 0) {
             const verb = await reverb(null, localState, true) as Tone.Reverb
             effectNodes.push(verb)
@@ -1417,9 +1417,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     useEffect(() => {
         const phoneMediaQuery = (query: MediaQueryListEvent | MediaQueryList) => {
             if (query.matches) {
-                searchBox.current!.placeholder = "YT or SC link..."
+                searchBox.current!.placeholder = "YT, SC, or BC link..."
             } else {
-                searchBox.current!.placeholder = "Youtube or Soundcloud link..."
+                searchBox.current!.placeholder = "Youtube, Soundcloud, or Bandcamp link..."
             }
         }
         const media = window.matchMedia("(max-width: 65rem)")

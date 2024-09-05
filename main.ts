@@ -11,6 +11,7 @@ import Soundcloud from "soundcloud.ts"
 import functions from "./structures/functions"
 import util from "util"
 import child_process from "child_process"
+
 import fs from "fs"
 
 const exec = util.promisify(child_process.exec)
@@ -23,6 +24,7 @@ let filePath = ""
 
 const youtube = new Youtube()
 const soundcloud = new Soundcloud()
+const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:129.0) Gecko/20100101 Firefox/129.0"
 
 let workletPath = path.join(app.getAppPath(), "../../structures")
 if (!fs.existsSync(workletPath)) workletPath = path.join(__dirname, "../structures")
@@ -176,14 +178,29 @@ ipcMain.handle("invoke-play", (event, info: any) => {
   window?.webContents.send("invoke-play", info)
 })
 
+const getBandcampInfo = async (trackUrl: string) => {
+  const html = await fetch(trackUrl, {headers: {"user-agent": userAgent}}).then((r) => r.text())
+  const image = html.match(/(?<=image_src" href=")(.*?)(?=")/)?.[0] || ""
+  const jsonStr = html.match(/(?<=data-tralbum=")(.*?)(?=")/)?.[0] || "{}"
+  const json = JSON.parse(jsonStr.replaceAll("&quot;", "\""))
+  const stream = json.trackinfo[0].file["mp3-128"]
+  const title = json.trackinfo[0].title
+  return {stream, title, image}
+}
+
 ipcMain.handle("get-song", async (event, url: string) => {
   let stream = null as unknown as NodeJS.ReadableStream
   if (url.includes("soundcloud.com")) {
     stream = await soundcloud.util.streamTrack(url)
+    return functions.streamToBuffer(stream)
   } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-    stream = await youtube.util.streamMP3(url)
+    const stream = await youtube.util.streamMP3(url)
+    return functions.streamToBuffer(stream)
+  } else if (url.includes("bandcamp.com")) {
+    const {stream} = await getBandcampInfo(url)
+    const buffer = await fetch(stream, {headers: {"user-agent": userAgent}}).then((r) => r.arrayBuffer())
+    return buffer
   }
-  return functions.streamToBuffer(stream)
 })
 
 ipcMain.handle("get-song-name", async (event, url: string) => {
@@ -192,6 +209,9 @@ ipcMain.handle("get-song-name", async (event, url: string) => {
     name = await soundcloud.util.getTitle(url)
   } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
     name = await youtube.util.getTitle(url)
+  } else if (url.includes("bandcamp.com")) {
+    const {title} = await getBandcampInfo(url)
+    name = title
   }
   return name
 })
@@ -201,7 +221,10 @@ ipcMain.handle("get-art", async (event, url: string) => {
   if (url.includes("soundcloud.com")) {
     picture = await soundcloud.util.downloadSongCover(url, undefined, true)
   } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-    picture = await youtube.util.downloadThumbnail(url, undefined, true)
+    picture = await youtube.util.getThumbnailSrc(url)
+  } else if (url.includes("bandcamp.com")) {
+    const {image} = await getBandcampInfo(url)
+    picture = image
   }
   return picture
 })

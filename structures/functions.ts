@@ -5,8 +5,20 @@ import pauseTinyHover from "../assets/icons/pauseTiny-hover.png"
 import {guess} from "web-audio-beat-detector"
 import fs from "fs"
 import path from "path"
+import {Writable} from "stream"
 
 const audioExtensions = [".mp3", ".wav", ".ogg", ".flac", ".aac", ".mid"]
+
+class BufferWritable extends Writable {
+    private chunks: Buffer[] = []
+    _write(chunk: any, encoding: any, callback: (error?: Error | null) => void): void {
+        this.chunks.push(chunk instanceof Buffer ? chunk : Buffer.from(chunk, encoding))
+        callback()
+    }
+    getBuffer(): Buffer {
+        return Buffer.concat(this.chunks)
+    }
+}
 
 export default class Functions {
     public static arrayIncludes = (str: string, arr: string[]) => {
@@ -118,9 +130,9 @@ export default class Functions {
     public static streamToBuffer = async (stream: NodeJS.ReadableStream) => {
         const chunks: any[] = []
         const arr = await new Promise<Buffer>((resolve, reject) => {
-          stream.on("data", (chunk) => chunks.push(Buffer.from(chunk)))
-          stream.on("error", (err) => reject(err))
-          stream.on("end", () => resolve(Buffer.concat(chunks)))
+            stream.on("data", (chunk) => chunks.push(Buffer.from(chunk)))
+            stream.on("error", (err) => reject(err))
+            stream.on("end", () => resolve(Buffer.concat(chunks)))
         })
         return arr.buffer
     }

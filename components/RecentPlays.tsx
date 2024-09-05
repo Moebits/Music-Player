@@ -20,7 +20,7 @@ const RecentPlays: React.FunctionComponent = (props) => {
     useEffect(() => {
         const updateRecentGUI = async () => {
             recent = await ipcRenderer.invoke("get-recent")
-            let newPages = []
+            let newPages = [] as any
             let counter = 0;
             while (counter < recent.length - 1) {
                 let newPage = [] as any
@@ -61,8 +61,8 @@ const RecentPlays: React.FunctionComponent = (props) => {
     }
 
     const generateJSX = () => {
-        let row1 = []
-        let row2 = []
+        let row1 = [] as any
+        let row2 = [] as any
         for (let i = 0; i < 4; i++) {
             if (!pages[pageIndex]?.[i]) {
                 row1.push(<img className="recent-square" src={square}/>)
