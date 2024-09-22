@@ -238,17 +238,6 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 }
             }
         }
-        /*
-        const progressLoop = async () => {
-            updateProgress()
-            await new Promise<void>((resolve) => {
-                clearTimeout(timeout)
-                timeout = setTimeout(() => {
-                    resolve()
-                }, 1000)
-            }).then(progressLoop)
-        }
-        progressLoop()*/
         window.setInterval(updateProgress, 1000)
 
         /*Change play button image*/
@@ -309,9 +298,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         const keyDown = (event: KeyboardEvent) => {
             if (event.shiftKey) {
                 event.preventDefault()
-                state.speedStep = 0.01
-                state.pitchStep = 1
                 state.stepFlag = false
+                speedBar.current.props.step = 0.01
+                pitchBar.current.props.step = 1
             }
             /* Play on Spacebar */
             if (event.code === "Space") {
@@ -345,6 +334,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         const keyUp = (event: KeyboardEvent) => {
             if (!event.shiftKey) {
                 state.stepFlag = true
+                speedBar.current.props.step = 0.5
+                pitchBar.current.props.step = 12
             }
         }
 
@@ -356,9 +347,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
 
         const mouseDown = () => {
             if (state.stepFlag) {
-                state.speedStep = 0.5
-                state.pitchStep = 12
                 state.stepFlag = false
+                speedBar.current.props.step = 0.5
+                pitchBar.current.props.step = 12
             }
             state.mouseFlag = true
         }
@@ -427,6 +418,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         phaserFrequency: 1,
         lowpassCutoff: 100,
         highpassCutoff: 0,
+        filterResonance: 6,
+        filterSlope: 0,
         highshelfCutoff: 70,
         highshelfGain: 0,
         lowshelfCutoff: 30,
@@ -447,9 +440,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         savedLoop: [0, 1000],
         pitchLFO: false,
         pitchLFORate: 1,
-        stepFlag: false,
-        speedStep: 0.5,
-        pitchStep: 12
+        stepFlag: false
     }
 
     const initialState = {...state}
@@ -565,7 +556,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 soundtouchNode.connect(lfoNode, 0, 1)
                 let currentNode = lfoNode
                 for (let i = 0; i < nodes.length; i++) {
-                    const node = nodes[i] instanceof Tone.ToneAudioNode ? nodes[i].input : nodes[i]
+                    let node = nodes[i] instanceof Tone.ToneAudioNode ? nodes[i].input : nodes[i]
                     currentNode.connect(node)
                     currentNode = nodes[i]
                 }
@@ -1225,6 +1216,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             editCode += "-loop"
         }
         let effectNodes = [] as any
+        if (localState.sampleRate !== 44100) {
+            const bit = await bitcrush(null, localState, true) as any
+            effectNodes.push(bit)
+            editCode += "-bitcrush"
+        }
         if (localState.reverbMix !== 0) {
             const verb = await reverb(null, localState, true) as Tone.Reverb
             effectNodes.push(verb)
@@ -1235,23 +1231,28 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             effectNodes.push(del)
             editCode += "-delay"
         }
+        if (localState.phaserMix !== 0) {
+            const phas = await phaser(null, localState, true) as Tone.Phaser
+            effectNodes.push(phas)
+            editCode += "-phaser"
+        }
         if (localState.lowpassCutoff !== 100) {
-            const low = await lowpass(null, localState, true) as Tone.BiquadFilter
+            const low = await lowpass(null, localState, true) as Tone.Filter
             effectNodes.push(low)
             editCode += "-lowpass"
         }
         if (localState.highpassCutoff !== 0) {
-            const high = await highpass(null, localState, true) as Tone.BiquadFilter
+            const high = await highpass(null, localState, true) as Tone.Filter
             effectNodes.push(high)
             editCode += "-highpass"
         }
         if (localState.highshelfGain !== 0) {
-            const high = await highshelf(null, localState, true) as Tone.BiquadFilter
+            const high = await highshelf(null, localState, true) as Tone.Filter
             effectNodes.push(high)
             editCode += "-highshelf"
         }
         if (localState.lowshelfGain !== 0) {
-            const low = await lowshelf(null, localState, true) as Tone.BiquadFilter
+            const low = await lowshelf(null, localState, true) as Tone.Filter
             effectNodes.push(low)
             editCode += "-lowshelf"
         }
@@ -1277,6 +1278,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             editCode += "-loop"
         }
         let effectNodes = [] as any
+        if (localState.sampleRate !== 44100) {
+            const bit = await bitcrush(null, localState, true) as any
+            effectNodes.push(bit)
+            editCode += "-bitcrush"
+        }
         if (localState.reverbMix !== 0) {
             const verb = await reverb(null, localState, true) as Tone.Reverb
             effectNodes.push(verb)
@@ -1287,23 +1293,28 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             effectNodes.push(del)
             editCode += "-delay"
         }
+        if (localState.phaserMix !== 0) {
+            const phas = await phaser(null, localState, true) as Tone.Phaser
+            effectNodes.push(phas)
+            editCode += "-phaser"
+        }
         if (localState.lowpassCutoff !== 100) {
-            const low = await lowpass(null, localState, true) as Tone.BiquadFilter
+            const low = await lowpass(null, localState, true) as Tone.Filter
             effectNodes.push(low)
             editCode += "-lowpass"
         }
         if (localState.highpassCutoff !== 0) {
-            const high = await highpass(null, localState, true) as Tone.BiquadFilter
+            const high = await highpass(null, localState, true) as Tone.Filter
             effectNodes.push(high)
             editCode += "-highpass"
         }
         if (localState.highshelfGain !== 0) {
-            const high = await highshelf(null, localState, true) as Tone.BiquadFilter
+            const high = await highshelf(null, localState, true) as Tone.Filter
             effectNodes.push(high)
             editCode += "-highshelf"
         }
         if (localState.lowshelfGain !== 0) {
-            const low = await lowshelf(null, localState, true) as Tone.BiquadFilter
+            const low = await lowshelf(null, localState, true) as Tone.Filter
             effectNodes.push(low)
             editCode += "-lowshelf"
         }
@@ -1670,12 +1681,20 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
     }
 
+    const getFilterSlope = () => {
+        if (state.filterSlope === 0) return -12
+        if (state.filterSlope === 1) return -24
+        if (state.filterSlope === 2) return -48
+        if (state.filterSlope === 3) return -96
+        return -12
+    }
+
     const lowpass = async (event: any, effect: any, noApply?: boolean) => {
         state = {...state, ...effect}
         if (state.lowpassCutoff === 100) {
             removeEffect("lowpass")
         } else {
-            const low = new Tone.BiquadFilter({type: "lowpass", frequency: functions.logSlider2(state.lowpassCutoff, 1, 20000)})
+            const low = new Tone.Filter({type: "lowpass", frequency: functions.logSlider2(state.lowpassCutoff, 1, 20000), Q: state.filterResonance, rolloff: getFilterSlope()})
             if (noApply) return low
             pushEffect("lowpass", low)
             applyEffects()
@@ -1687,7 +1706,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (state.highpassCutoff === 0) {
             removeEffect("highpass")
         } else {
-            const high = new Tone.BiquadFilter({type: "highpass", frequency: functions.logSlider2(state.highpassCutoff, 1, 20000)})
+            const high = new Tone.Filter({type: "highpass", frequency: functions.logSlider2(state.highpassCutoff, 1, 20000), Q: state.filterResonance, rolloff: getFilterSlope()})
             if (noApply) return high
             pushEffect("highpass", high)
             applyEffects()
@@ -1699,7 +1718,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (state.highshelfGain === 0) {
             removeEffect("highshelf")
         } else {
-            const high = new Tone.BiquadFilter({type: "highshelf", frequency: functions.logSlider2(state.highshelfCutoff, 1, 20000), gain: state.highshelfGain})
+            const high = new Tone.Filter({type: "highshelf", frequency: functions.logSlider2(state.highshelfCutoff, 1, 20000), gain: state.highshelfGain, Q: state.filterResonance, rolloff: getFilterSlope()})
             if (noApply) return high
             pushEffect("highshelf", high)
             applyEffects()
@@ -1711,7 +1730,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (state.lowshelfGain === 0) {
             removeEffect("lowshelf")
         } else {
-            const low = new Tone.BiquadFilter({type: "lowshelf", frequency: functions.logSlider2(state.lowshelfCutoff, 1, 20000), gain: state.lowshelfGain})
+            const low = new Tone.Filter({type: "lowshelf", frequency: functions.logSlider2(state.lowshelfCutoff, 1, 20000), gain: state.lowshelfGain, Q: state.filterResonance, rolloff: getFilterSlope()})
             if (noApply) return low
             pushEffect("lowshelf", low)
             applyEffects()
@@ -1796,7 +1815,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                     <img className="player-button" ref={reverseImg} src={reverseIcon} onClick={() => reverse()} width="30" height="30" onMouseEnter={() => toggleHover("reverse", true)} onMouseLeave={() => toggleHover("reverse")}/>
                         <div className="speed-popup-container" ref={speedPopup} style={({display: "none"})}>
                             <div className="speed-popup">
-                                <Slider className="speed-slider" trackClassName="speed-slider-track" thumbClassName="speed-slider-handle" ref={speedBar} onChange={(value) => speed(value)} min={0.5} max={4} step={state.speedStep} defaultValue={1}/>
+                                <Slider className="speed-slider" trackClassName="speed-slider-track" thumbClassName="speed-slider-handle" ref={speedBar} onChange={(value) => speed(value)} min={0.5} max={4} step={0.5} defaultValue={1}/>
                                 <div className="speed-checkbox-container">
                                     <p className="speed-text">Pitch?</p>
                                     <img className="speed-checkbox" ref={speedCheckbox} src={!state.preservesPitch ? checkboxChecked : checkbox} onClick={() => preservesPitch()}/>
@@ -1806,7 +1825,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                         <img className="player-button" src={speedIcon} ref={speedImg} onClick={() => showSpeedPopup()} width="30" height="30" onMouseEnter={() => toggleHover("speed", true)} onMouseLeave={() => toggleHover("speed")}/>
                         <div className="pitch-popup-container" ref={pitchPopup} style={({display: "none"})}>
                             <div className="pitch-popup">
-                                <Slider className="pitch-slider" trackClassName="pitch-slider-track" thumbClassName="pitch-slider-handle" ref={pitchBar} onChange={(value) => pitch(value)} min={-24} max={24} step={state.pitchStep} defaultValue={0}/>
+                                <Slider className="pitch-slider" trackClassName="pitch-slider-track" thumbClassName="pitch-slider-handle" ref={pitchBar} onChange={(value) => pitch(value)} min={-24} max={24} step={12} defaultValue={0}/>
                                 <div className="pitch-checkbox-container">
                                     <p className="speed-text">LFO?</p>
                                     <img className="pitch-checkbox" ref={pitchCheckbox} src={state.pitchLFO ? checkboxChecked : checkbox} onClick={() => pitchLFO()}/>
