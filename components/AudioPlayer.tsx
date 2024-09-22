@@ -93,6 +93,59 @@ const initialize = async () => {
 if (typeof window !== "undefined") initialize()
 
 const AudioPlayer: React.FunctionComponent = (props) => {
+    const [reverse, setReverse] = useState(false)
+    const [pitch, setPitch] = useState(0)
+    const [speed, setSpeed] = useState(1)
+    const [volume, setVolume] = useState(1)
+    const [muted, setMuted] = useState(false)
+    const [loop, setLoop] = useState(false)
+    const [abloop, setABLoop] = useState(false)
+    const [loopStart, setLoopStart] = useState(0)
+    const [loopEnd, setLoopEnd] = useState(1000)
+    const [preservesPitch, setPreservesPitch] = useState(false)
+    const [duration, setDuration] = useState(0)
+    const [song, setSong] = useState("")
+    const [songName, setSongName] = useState("No title")
+    const [songCover, setSongCover] = useState(placeholder)
+    const [songUrl, setSongUrl] = useState("")
+    const [editCode, setEditCode] = useState("")
+    const [effects, setEffects] = useState([] as { type: string, node: Tone.ToneAudioNode }[])
+    const [dragging, setDragging] = useState(false)
+    const [playHover, setPlayHover] = useState(false)
+    const [volumeHover, setVolumeHover] = useState(false)
+    const [sampleRate, setSampleRate] = useState(44100)
+    const [reverbMix, setReverbMix] = useState(0)
+    const [reverbDecay, setReverbDecay] = useState(1.5)
+    const [delayMix, setDelayMix] = useState(0)
+    const [delayTime, setDelayTime] = useState(0.25)
+    const [delayFeedback, setDelayFeedback] = useState(0.5)
+    const [phaserMix, setPhaserMix] = useState(0)
+    const [phaserFrequency, setPhaserFrequency] = useState(1)
+    const [lowpassCutoff, setLowpassCutoff] = useState(100)
+    const [highpassCutoff, setHighpassCutoff] = useState(0)
+    const [highshelfCutoff, setHighshelfCutoff] = useState(70)
+    const [highshelfGain, setHighshelfGain] = useState(0)
+    const [lowshelfCutoff, setLowshelfCutoff] = useState(30)
+    const [lowshelfGain, setLowshelfGain] = useState(0)
+    const [midi, setMidi] = useState(false)
+    const [midiFile, setMidiFile] = useState(null as unknown as Midi)
+    const [midiDuration, setMidiDuration] = useState(0)
+    const [bpm, setBpm] = useState(0)
+    const [wave, setWave] = useState("square")
+    const [attack, setAttack] = useState(0.02)
+    const [decay, setDecay] = useState(0.5)
+    const [sustain, setSustain] = useState(0.3)
+    const [release, setRelease] = useState(0.5)
+    const [poly, setPoly] = useState(true)
+    const [portamento, setPortamento] = useState(0)
+    const [resizeFlag, setResizeFlag] = useState(false)
+    const [mouseFlag, setMouseFlag] = useState(false)
+    const [savedLoop, setSavedLoop] = useState([0, 1000])
+    const [pitchLFO, setPitchLFO] = useState(false)
+    const [pitchLFORate, setPitchLFORate] = useState(1)
+    const [stepFlag, setStepFlag] = useState(false)
+    const [speedStep, setSpeedStep] = useState(0.5)
+    const [pitchStep, setPitchStep] = useState(12)
     const progressBar = useRef(null) as any
     const volumeBar = useRef(null) as any
     const speedBar = useRef(null) as any
@@ -117,8 +170,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const resetImg = useRef(null) as React.RefObject<HTMLImageElement>
     const loopImg = useRef(null) as React.RefObject<HTMLImageElement>
     const abLoopImg = useRef(null) as React.RefObject<HTMLImageElement>
-    const songCover = useRef(null) as React.RefObject<HTMLImageElement>
-    const songTitle = useRef(null) as React.RefObject<HTMLHeadingElement>
+    const songCoverRef = useRef(null) as React.RefObject<HTMLImageElement>
+    const songNameRef = useRef(null) as React.RefObject<HTMLHeadingElement>
+
 
     useEffect(() => {
         progressBar.current?.resize()
@@ -152,15 +206,14 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (text) searchBox.current!.value += text
         }
         const copyLoop = () => {
-            if (state.abloop && state.loopEnd) {
-                state.savedLoop[0] = state.loopStart
-                state.savedLoop[1] = state.loopEnd
+            if (abloop && loopEnd) {
+                setSavedLoop([loopStart, loopEnd])
             }
         }
         const pasteLoop = () => {
-            if (!state.abloop) toggleAB(true)
-            abloop(state.savedLoop)
-            updateABSliderPos(state.savedLoop)
+            if (!abloop) toggleAB(true)
+            updateABLoop(savedLoop)
+            updateABSliderPos(savedLoop)
         }
         const triggerOpen = () => {
             upload()
@@ -212,29 +265,29 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     useEffect(() => {
         /*Update Progress*/
         const updateProgress = () => {
-            let percent = (Tone.Transport.seconds / state.duration)
+            let percent = (Tone.Transport.seconds / duration)
             if (!Number.isFinite(percent)) return
-            if (!state.dragging) {
-                if (state.reverse === true) {
+            if (!dragging) {
+                if (reverse) {
                     updateSliderPos((1-percent) * 100)
-                    secondsProgress.current!.innerText = functions.formatSeconds(state.duration - Tone.Transport.seconds)
+                    secondsProgress.current!.innerText = functions.formatSeconds(duration - Tone.Transport.seconds)
                 } else {
                     updateSliderPos(percent * 100)
                     secondsProgress.current!.innerText = functions.formatSeconds(Tone.Transport.seconds)
                 }
             }
-            if (!state.loop) {
-                if (Tone.Transport.seconds > state.duration - 1) {
+            if (!loop) {
+                if (Tone.Transport.seconds > duration - 1) {
                     disposeSynths()
                     Tone.Transport.pause()
-                    Tone.Transport.seconds = Math.round(state.duration) - 1
+                    Tone.Transport.seconds = Math.round(duration) - 1
                 }
-                if (Tone.Transport.seconds === Math.round(state.duration) - 1) Tone.Transport.seconds = Math.round(state.duration)
+                if (Tone.Transport.seconds === Math.round(duration) - 1) Tone.Transport.seconds = Math.round(duration)
             } else {
-                if (state.midi && Math.floor(Tone.Transport.seconds) === 0) playMIDI()
-                if (Tone.Transport.seconds > state.duration) {
+                if (midi && Math.floor(Tone.Transport.seconds) === 0) playMIDI()
+                if (Tone.Transport.seconds > duration) {
                     Tone.Transport.seconds = 0
-                    if (state.midi) playMIDI()
+                    if (midi) playMIDI()
                 }
             }
         }
@@ -253,7 +306,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
 
         /*Change play button image*/
         const onPause = () => {
-            if (state.playHover) {
+            if (playHover) {
                 if (playButton.current?.src !== playHoverIcon) playButton.current!.src = playHoverIcon
             } else {
                 if (playButton.current?.src !== playIcon) playButton.current!.src = playIcon
@@ -261,7 +314,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
 
         const onStop = () => {
-            if (state.playHover) {
+            if (playHover) {
                 if (playButton.current?.src !== playHoverIcon) playButton.current!.src = playHoverIcon
             } else {
                 if (playButton.current?.src !== playIcon) playButton.current!.src = playIcon
@@ -269,7 +322,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
 
         const onStart = () => {
-            if (state.playHover) {
+            if (playHover) {
                 if (playButton.current?.src !== pauseHoverIcon) playButton.current!.src = pauseHoverIcon
             } else {
                 if (playButton.current?.src !== pauseIcon) playButton.current!.src = pauseIcon
@@ -302,16 +355,16 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             Tone.Transport.off("start", onStart)
             window.removeEventListener("click", onWindowClick)
         }
-    }, [])
+    }, [duration, reverse, dragging, midi, loop, playHover])
 
     useEffect(() => {
         /* Precision on shift click */
         const keyDown = (event: KeyboardEvent) => {
             if (event.shiftKey) {
                 event.preventDefault()
-                state.speedStep = 0.01
-                state.pitchStep = 1
-                state.stepFlag = false
+                setSpeedStep(0.01)
+                setPitchStep(1)
+                setStepFlag(false)
             }
             /* Play on Spacebar */
             if (event.code === "Space") {
@@ -334,42 +387,42 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             }
             if (event.key === "ArrowUp") {
                 event.preventDefault()
-                volume(state.volume + 0.05)
+                updateVolume(volume + 0.05)
             }
             if (event.key === "ArrowDown") {
                 event.preventDefault()
-                volume(state.volume - 0.05)
+                updateVolume(volume - 0.05)
             }
         }
 
         const keyUp = (event: KeyboardEvent) => {
             if (!event.shiftKey) {
-                state.stepFlag = true
+                setStepFlag(true)
             }
         }
 
         const wheel = (event: WheelEvent) => {
             event.preventDefault()
             const delta = Math.sign(event.deltaY)
-            volume(state.volume - delta * 0.05)
+            updateVolume(volume - delta * 0.05)
         }
 
         const mouseDown = () => {
-            if (state.stepFlag) {
-                state.speedStep = 0.5
-                state.pitchStep = 12
-                state.stepFlag = false
+            if (stepFlag) {
+                setSpeedStep(0.5)
+                setPitchStep(12)
+                setStepFlag(false)
             }
-            state.mouseFlag = true
+            setMouseFlag(true)
         }
 
         const mouseUp = () => {
-            state.mouseFlag = false
-            state.resizeFlag = false
+            setMouseFlag(false)
+            setResizeFlag(false)
         }
 
         const mouseMove = (event: MouseEvent) => {
-            if (state.resizeFlag && state.mouseFlag) {
+            if (resizeFlag && mouseFlag) {
                 const element = document.querySelector(".player") as HTMLElement
                 let newHeight = window.innerHeight - event.pageY
                 if (newHeight < 100) newHeight = 100
@@ -393,120 +446,78 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             window.removeEventListener("mouseup", mouseUp)
             window.removeEventListener("mousemove", mouseMove)
         }
-    })
+    }, [speedStep, pitchStep, volume, stepFlag, resizeFlag, mouseFlag])
 
-    let state = {
-        reverse: false,
-        pitch: 0,
-        speed: 1,
-        volume: 1,
-        muted: false,
-        loop: false,
-        abloop: false,
-        loopStart: 0,
-        loopEnd: 1000,
-        preservesPitch: false,
-        duration: 0,
-        song: "",
-        songName: "No title",
-        songCover: placeholder,
-        songUrl: "",
-        editCode: "",
-        download: "",
-        effects: [] as {type: string, node: Tone.ToneAudioNode}[],
-        dragging: false,
-        playHover: false,
-        volumeHover: false,
-        sampleRate: 44100,
-        reverbMix: 0,
-        reverbDecay: 1.5,
-        delayMix: 0,
-        delayTime: 0.25,
-        delayFeedback: 0.5,
-        phaserMix: 0,
-        phaserFrequency: 1,
-        lowpassCutoff: 100,
-        highpassCutoff: 0,
-        highshelfCutoff: 70,
-        highshelfGain: 0,
-        lowshelfCutoff: 30,
-        lowshelfGain: 0,
-        midi: false,
-        midiFile: null as unknown as Midi,
-        midiDuration: 0,
-        bpm: 0,
-        wave: "square",
-        attack: 0.02,
-        decay: 0.5,
-        sustain: 0.3,
-        release: 0.5,
-        poly: true,
-        portamento: 0,
-        resizeFlag: false,
-        mouseFlag: false,
-        savedLoop: [0, 1000],
-        pitchLFO: false,
-        pitchLFORate: 1,
-        stepFlag: false,
-        speedStep: 0.5,
-        pitchStep: 12
-    }
-
-    const initialState = {...state}
+    useEffect(() => {
+        /* JS Media Queries */
+        const phoneMediaQuery = (query: MediaQueryListEvent | MediaQueryList) => {
+            if (query.matches) {
+                searchBox.current!.placeholder = "YT, SC, or BC link..."
+            } else {
+                searchBox.current!.placeholder = "Youtube, Soundcloud, or Bandcamp link..."
+            }
+        }
+        const media = window.matchMedia("(max-width: 65rem)")
+        media.addEventListener("change", phoneMediaQuery)
+        phoneMediaQuery(media)
+        return () => {
+            media.removeEventListener("change", phoneMediaQuery)
+        }
+    }, [])
 
     const initState = async () => {
         const saved = await ipcRenderer.invoke("get-state")
         const synthSaved = await ipcRenderer.invoke("get-synth-state")
         if (saved.preservesPitch !== undefined) {
-            state.preservesPitch = saved.preservesPitch
-            speedCheckbox.current!.src = !state.preservesPitch ? checkboxChecked : checkbox
+            setPreservesPitch(saved.preservesPitch)
+            speedCheckbox.current!.src = !preservesPitch ? checkboxChecked : checkbox
         }
         if (saved.pitchLFO !== undefined) {
-            state.pitchLFO = saved.pitchLFO
-            pitchCheckbox.current!.src = state.pitchLFO ? checkboxChecked : checkbox
+            setPitchLFO(saved.pitchLFO)
+            pitchCheckbox.current!.src = pitchLFO ? checkboxChecked : checkbox
         }
         if (saved.pitchLFORate !== undefined) {
-            state.pitchLFORate = saved.pitchLFORate
+            setPitchLFORate(saved.pitchLFORate)
         }
         if (saved.speed !== undefined) {
-            state.speed = saved.speed
-            if (state.speed === 1) {
+            setSpeed(saved.speed)
+            if (saved.speed === 1) {
                 speedImg.current!.src = speedIcon
             } else {
                 speedImg.current!.src = speedActiveIcon
             }
         }
         if (saved.pitch !== undefined) {
-            state.pitch = saved.pitch
-            if (state.pitch === 0) {
+            setPitch(saved.pitch)
+            if (saved.pitch === 0) {
                 pitchImg.current!.src = pitchIcon
             } else {
                 pitchImg.current!.src = pitchActiveIcon
             }
         }
         if (saved.reverse !== undefined) {
-            state.reverse = saved.reverse
-            if (state.reverse === false) {
+            setReverse(saved.reverse)
+            if (saved.reverse === false) {
                 reverseImg.current!.src = reverseIcon
             } else {
                 reverseImg.current!.src = reverseActiveIcon
             }
         }
         if (saved.loop !== undefined) {
-            state.loop = saved.loop
-            if (state.loop === false) {
+            setLoop(saved.loop)
+            if (saved.loop === false) {
                 loopImg.current!.src = loopIcon
             } else {
                 loopImg.current!.src = loopActiveIcon
             }
         }
-        if (synthSaved.wave !== undefined) state.wave = synthSaved.wave
-        if (synthSaved.attack !== undefined) state.attack = synthSaved.attack
-        if (synthSaved.decay !== undefined) state.decay = synthSaved.decay
-        if (synthSaved.sustain !== undefined) state.sustain = synthSaved.sustain 
-        if (synthSaved.release !== undefined) state.release = synthSaved.release 
-        if (synthSaved.poly !== undefined) state.poly = synthSaved.poly 
-        if (synthSaved.portamento !== undefined) state.portamento = synthSaved.portamento
+        if (synthSaved.wave !== undefined) setWave(synthSaved.wave)
+        if (synthSaved.attack !== undefined) setAttack(synthSaved.attack)
+        if (synthSaved.decay !== undefined) setDecay(synthSaved.decay)
+        if (synthSaved.sustain !== undefined) setSustain(synthSaved.sustain)
+        if (synthSaved.release !== undefined) setRelease(synthSaved.release) 
+        if (synthSaved.poly !== undefined) setPoly(synthSaved.poly)
+        if (synthSaved.portamento !== undefined) setPortamento(synthSaved.portamento)
         pitchLFOStyle()
         updateVolumePos(1)
         updateBarPos()
@@ -514,35 +525,36 @@ const AudioPlayer: React.FunctionComponent = (props) => {
 
     const refreshState = () => {
         const apply = {player}
-        preservesPitch(state.preservesPitch)
-        speed(state.speed)
-        pitch(state.pitch)
-        pitchLFO(state.pitchLFO)
-        reverse(state.reverse, apply)
-        loop(state.loop)
-        if (state.abloop) abloop([state.loopStart, state.loopEnd])
+        updatePreservesPitch(preservesPitch)
+        updateSpeed(speed)
+        updatePitch(pitch)
+        updatePitchLFO(pitchLFO)
+        updateReverse(reverse, apply)
+        updateLoop(loop)
+        if (abloop) updateABLoop([loopStart, loopEnd])
     }
 
-    const saveState = () => {
-        ipcRenderer.invoke("save-state", {reverse: state.reverse, pitch: state.pitch, speed: state.speed, preservesPitch: state.preservesPitch, pitchLFO: state.pitchLFO, pitchLFORate: state.pitchLFORate, loop: state.loop, abloop: state.abloop, loopStart: state.loopStart, loopEnd: state.loopEnd})
-    }
+    useEffect(() => {
+        ipcRenderer.invoke("save-state", {reverse, pitch, speed, preservesPitch, pitchLFO, pitchLFORate, loop, abloop, loopStart, loopEnd})
+    }, [reverse, pitch, speed, preservesPitch, pitchLFO, pitchLFORate, loop, abloop, loopStart, loopEnd])
 
     const removeEffect = (type: string) => {
-        const index = state.effects.findIndex((e) => e?.type === type)
+        const index = effects.findIndex((e) => e?.type === type)
         if (index !== -1) {
-            state.effects[index] = null as any
-            state.effects = state.effects.filter(Boolean)
+            effects[index] = null as any
+            setEffects(effects.filter(Boolean))
         }
     }
 
     const pushEffect = (type: string, node: Tone.ToneAudioNode) => {
         const obj = {type, node}
-        const index = state.effects.findIndex((e) => e?.type === type)
+        const index = effects.findIndex((e) => e?.type === type)
         if (index !== -1) {
-            state.effects[index] = obj
+            effects[index] = obj
         } else {
-            state.effects.push(obj)
+            effects.push(obj)
         }
+        setEffects(effects)
     }
     
     const applyEffects = () => {
@@ -551,12 +563,12 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         staticSoundtouchNode.disconnect()
         lfoNode.disconnect()
         if (synths.length) synths.forEach((s) => s.disconnect())
-        const nodes = state.effects.map((e) => e?.node).filter(Boolean)
+        const nodes = effects.map((e) => e?.node).filter(Boolean)
         if (nodes[0]) nodes.forEach((n) => n.disconnect())
-        if (state.midi) {
+        if (midi) {
             if (synths.length) synths.forEach((s) => s.chain(...[...nodes, Tone.Destination]))
         } else {
-            if (state.pitchLFO) {
+            if (pitchLFO) {
                 audioNode.input = player
                 effectNode.input = player
                 audioNode.input.connect(staticSoundtouchNode)
@@ -586,31 +598,30 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const switchState = () => {
-        if (state.midi) {
+        if (midi) {
             player.disconnect()
         } else {
             if (synths.length) disposeSynths()
         }
     }
 
-    const duration = (value?: number) => {
+    const updateDuration = (value?: number) => {
         if (value) {
-            state.duration = value
+            setDuration(value)
         } else {
-            if (!state.midi) {
-                state.duration = player.buffer.duration / player.playbackRate
-
+            if (!midi) {
+                setDuration(player.buffer.duration / player.playbackRate)
                 functions.getBPM(player.buffer.get()!).then(({bpm}) => {
-                    state.bpm = bpm
+                    setBpm(bpm)
                     lfoNode.parameters.get("bpm").value = bpm
                 })
             }
         }
-        secondsTotal.current!.innerText = functions.formatSeconds(state.duration)
+        secondsTotal.current!.innerText = functions.formatSeconds(duration)
     }
 
     const checkBuffer = () => {
-        if (state.midi) return true
+        if (midi) return true
         return player.buffer.loaded
     }
 
@@ -622,18 +633,18 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const play = async (alwaysPlay?: boolean) => {
         if (!checkBuffer()) return
         await Tone.start()
-        duration()
+        updateDuration()
         const progress = getProgress()
-        if (state.reverse === true) {
+        if (reverse) {
             if (progress === 0) stop()
         } else {
             if (progress === 100) stop()
         }
         if (Tone.Transport.state === "started" && !alwaysPlay) {
-            if (state.midi) disposeSynths()
+            if (midi) disposeSynths()
             Tone.Transport.pause()
         } else {
-            if (state.midi) await playMIDI()
+            if (midi) await playMIDI()
             Tone.Transport.start()
         }
         functions.flipPlayTitle()
@@ -648,30 +659,31 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const mute = () => {
-        if (state.muted === true) {
-            state.muted = false
+        if (muted) {
+            setMuted(false)
             Tone.Destination.mute = false
-            if (state.volume === 0) state.volume = 1
-            updateVolumePos(state.volume)
-            Tone.Destination.volume.value = functions.logSlider(state.volume)
-            if (state.volume <= 0.5) {
-                if (state.volumeHover) {
+            let newVolume = volume
+            if (volume === 0) newVolume = 1
+            updateVolumePos(newVolume)
+            Tone.Destination.volume.value = functions.logSlider(newVolume)
+            if (newVolume <= 0.5) {
+                if (volumeHover) {
                     volumeRef.current!.src = volumeLowHoverIcon
                 } else {
                     volumeRef.current!.src = volumeLowIcon
                 }
             } else {
-                if (state.volumeHover) {
+                if (volumeHover) {
                     volumeRef.current!.src = volumeHoverIcon
                 } else {
                     volumeRef.current!.src = volumeIcon
                 }
             }
         } else {
-            state.muted = true
+            setMuted(true)
             Tone.Destination.mute = true
             updateVolumePos(0)
-            if (state.volumeHover) {
+            if (volumeHover) {
                 volumeRef.current!.src = muteHoverIcon
             } else {
                 volumeRef.current!.src = muteIcon
@@ -679,139 +691,145 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
     }
 
-    const volume = (value: number) => {
+    const updateVolume = (value: number) => {
         if (value > 1) value = 1
         if (value < 0) value = 0
-        state.volume = value
-        Tone.Destination.volume.value = functions.logSlider(state.volume)
-        if (state.volume === 0) {
+        let newVolume = value
+        setVolume(newVolume)
+        Tone.Destination.volume.value = functions.logSlider(newVolume)
+        if (newVolume === 0) {
             Tone.Destination.mute = true
-            state.muted = true
-            if (state.volumeHover) {
+            setMuted(true)
+            if (volumeHover) {
                 volumeRef.current!.src = muteHoverIcon
             } else {
                 volumeRef.current!.src = muteIcon
             }
         } else {
             Tone.Destination.mute = false
-            state.muted = false
-            if (state.volume <= 0.5) {
-                if (state.volumeHover) {
+            setMuted(false)
+            if (newVolume <= 0.5) {
+                if (volumeHover) {
                     volumeRef.current!.src = volumeLowHoverIcon
                 } else {
                     volumeRef.current!.src = volumeLowIcon
                 }
             } else {
-                if (state.volumeHover) {
+                if (volumeHover) {
                     volumeRef.current!.src = volumeHoverIcon
                 } else {
                     volumeRef.current!.src = volumeIcon
                 }
             }
         }
-        updateVolumePos(state.volume)
+        updateVolumePos(newVolume)
     }
 
-    const speed = async (value?: number | string, applyState?: any) => {
-        if (value) state.speed = Number(value)
-        if (state.speed === 1) {
+    const updateSpeed = async (value?: number | string, applyState?: any) => {
+        let newSpeed = speed
+        if (value) newSpeed = Number(value)
+        setSpeed(newSpeed)
+        if (newSpeed === 1) {
             speedImg.current!.src = speedIcon
         } else {
             speedImg.current!.src = speedActiveIcon
         }
-        if (state.midi) {
+        let newDuration = duration
+        if (midi) {
             await playMIDI()
         } else {
             let currentPlayer = player
             if (applyState) {
                 currentPlayer = applyState.player
             }
-            currentPlayer.playbackRate = state.speed
-            const pitchCorrect = state.preservesPitch ? 1 / state.speed : 1
-            soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(state.pitch) * pitchCorrect
+            currentPlayer.playbackRate = newSpeed
+            const pitchCorrect = preservesPitch ? 1 / newSpeed : 1
+            soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(pitch) * pitchCorrect
             applyEffects()
-            let percent = Tone.Transport.seconds / state.duration
-            state.duration  = (player.buffer.duration / state.speed)
-            let val = percent * state.duration
+            let percent = Tone.Transport.seconds / duration
+            newDuration = player.buffer.duration / newSpeed
+            setDuration(newDuration)
+            let val = percent * newDuration
             if (val < 0) val = 0
-            if (val > state.duration - 1) val = state.duration - 1
+            if (val > newDuration - 1) val = newDuration - 1
             Tone.Transport.seconds = val
         }
-        if (state.abloop) {
-            applyAB(state.duration)
+        if (abloop) {
+            applyAB(newDuration)
         } else {
-            Tone.Transport.loopEnd = state.duration
+            Tone.Transport.loopEnd = newDuration
         }   
-        secondsTotal.current!.innerText = functions.formatSeconds(state.duration)
-        if (state.reverse === true) {
-            secondsProgress.current!.innerText = functions.formatSeconds(state.duration - Tone.Transport.seconds)
+        secondsTotal.current!.innerText = functions.formatSeconds(newDuration)
+        if (reverse) {
+            secondsProgress.current!.innerText = functions.formatSeconds(newDuration - Tone.Transport.seconds)
         } else {
             secondsProgress.current!.innerText = functions.formatSeconds(Tone.Transport.seconds)
         }
-        saveState()
     }
 
-    const preservesPitch = (value?: boolean) => {
-        state.preservesPitch = value !== undefined ? value : !state.preservesPitch
-        speedCheckbox.current!.src = !state.preservesPitch ? checkboxChecked : checkbox
-        saveState()
-        speed()
+    const updatePreservesPitch = (value?: boolean) => {
+        let currPreservesPitch = value !== undefined ? value : !preservesPitch
+        setPreservesPitch(currPreservesPitch)
+        speedCheckbox.current!.src = !currPreservesPitch ? checkboxChecked : checkbox
+        updateSpeed()
     }
 
-    const pitch = async (value?: number | string, applyState?: any) => {
-        if (value !== undefined) state.pitch = Number(value) 
-        if (state.pitch === 0) {
+    const updatePitch = async (value?: number | string, applyState?: any) => {
+        let newPitch = pitch
+        if (value !== undefined) newPitch = Number(value) 
+        setPitch(newPitch)
+        if (newPitch === 0) {
             pitchImg.current!.src = pitchIcon
         } else {
             pitchImg.current!.src = pitchActiveIcon
         }
-        if (state.midi) {
+        if (midi) {
             if (!applyState) await playMIDI()
         } else {
-            const pitchCorrect = state.preservesPitch ? 1 / state.speed : 1
-            soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(state.pitch) * pitchCorrect
+            const pitchCorrect = preservesPitch ? 1 / speed : 1
+            soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(newPitch) * pitchCorrect
         }
-        saveState()
     }
 
     const pitchLFOStyle = () => {
         if (!pitchSlider.current) return
         pitchSlider.current.style.width = "100%"
-        if (state.pitchLFO) {
+        if (pitchLFO) {
             pitchSlider.current.style.display = "flex"
         } else {
             pitchSlider.current.style.display = "none"
         }
     }
 
-    const pitchLFO = (value?: boolean) => {
-        state.pitchLFO = value !== undefined ? value : !state.pitchLFO
-        pitchCheckbox.current!.src = state.pitchLFO ? checkboxChecked : checkbox
+    const updatePitchLFO = (value?: boolean) => {
+        const newPitchLFO = value !== undefined ? value : !pitchLFO
+        setPitchLFO(newPitchLFO)
+        pitchCheckbox.current!.src = newPitchLFO ? checkboxChecked : checkbox
         pitchLFOStyle()
-        saveState()
         applyEffects()
     }
 
-    const pitchLFORate = async (value?: number | string) => {
-        if (value !== undefined) state.pitchLFORate = Number(value)
-        lfoNode.parameters.get("lfoRate").value = state.pitchLFORate
-        lfoNode.port.postMessage({lfoShape: state.wave})
-        saveState()
+    const updatePitchLFORate = async (value?: number | string) => {
+        let newPitchLFORate = pitchLFORate
+        if (value !== undefined) newPitchLFORate = Number(value)
+        lfoNode.parameters.get("lfoRate").value = newPitchLFORate
+        lfoNode.port.postMessage({lfoShape: wave})
     }
 
-    const reverse = async (value?: boolean, applyState?: any) => {
-        let percent = Tone.Transport.seconds / state.duration
-        let val = (1-percent) * state.duration
+    const updateReverse = async (value?: boolean, applyState?: any) => {
+        let newReverse = reverse
+        let percent = Tone.Transport.seconds / duration
+        let val = (1-percent) * duration
         if (val < 0) val = 0
-        if (val > state.duration - 1) val = state.duration - 1
-        if (state.midi) {
-            if (value === false || (state.reverse === true)) {
+        if (val > duration - 1) val = duration - 1
+        if (midi) {
+            if (value === false || newReverse) {
                 Tone.Transport.seconds = val
-                state.reverse = false
+                newReverse = false
                 reverseImg.current!.src = reverseIcon
             } else {
                 Tone.Transport.seconds = val
-                state.reverse = true
+                newReverse = true
                 reverseImg.current!.src = reverseActiveIcon
             }
             await playMIDI()
@@ -822,26 +840,25 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 currentPlayer = applyState.player
                 skip = true
             }
-            if (value === false || (state.reverse === true && !skip)) {
+            if (value === false || (newReverse && !skip)) {
                 if (!applyState) Tone.Transport.seconds = val
-                state.reverse = false
+                newReverse = false
                 currentPlayer.reverse = false
                 reverseImg.current!.src = reverseIcon
             } else {
                 if (!applyState) Tone.Transport.seconds = val
-                state.reverse = true
+                newReverse = true
                 currentPlayer.reverse = true
                 reverseImg.current!.src = reverseActiveIcon
             }
         }
-        applyAB(state.duration)
+        setReverse(newReverse)
+        applyAB(duration)
         if (!applyState) updateMetadata()
-        // reverseStyle()
-        saveState()
     }
 
     const reverseStyle = () => {
-        if (state.reverse) {
+        if (reverse) {
             (document.querySelector(".progress-slider > .rc-slider-track") as any).style.backgroundColor = "black";
             (document.querySelector(".progress-slider > .rc-slider-rail") as any).style.backgroundColor = "#991fbe"
         } else {
@@ -920,34 +937,38 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const updateBarPos = () => {
-        updateSpeedPos(state.speed)
-        updatePitchPos(state.pitch)
-        if (state.pitchLFO) updatePitchLFOPos(state.pitchLFORate)
+        updateSpeedPos(speed)
+        updatePitchPos(pitch)
+        if (pitchLFO) updatePitchLFOPos(pitchLFORate)
     }
 
     const reset = async () => {
-        const {song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, loop} = state
-        state = {...initialState, song, songName, songCover, songUrl, midi, midiDuration, midiFile, bpm, loop}
-        player.playbackRate = state.speed
-        soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(state.pitch)
-        lfoNode.parameters.get("lfoRate").value = state.pitchLFORate
-        lfoNode.port.postMessage({lfoShape: state.wave})
-        speedCheckbox.current!.src = !state.preservesPitch ? checkboxChecked : checkbox
-        pitchCheckbox.current!.src = state.pitchLFO ? checkboxChecked : checkbox
-        updateSpeedPos(state.speed)
-        updatePitchPos(state.pitch)
-        updatePitchLFOPos(state.pitchLFORate)
-        player.reverse = state.reverse
-        Tone.Transport.loop = state.loop
+        setSpeed(1)
+        player.playbackRate = 1
+        updateSpeedPos(1)
+        setPitch(0)
+        soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(0)
+        updatePitchPos(0)
+        setPitchLFORate(1)
+        lfoNode.parameters.get("lfoRate").value = 1
+        updatePitchLFOPos(1)
+        setWave("square")
+        lfoNode.port.postMessage({lfoShape: "square"})
+        setPreservesPitch(false)
+        speedCheckbox.current!.src = !preservesPitch ? checkboxChecked : checkbox
+        setPitchLFO(false)
+        pitchCheckbox.current!.src = pitchLFO ? checkboxChecked : checkbox
+        setReverse(false)
+        player.reverse = false
+        setABLoop(false)
         updateABSliderPos([0, 1000])
         abSlider.current.slider.style.display = "none";
         speedImg.current!.src = speedIcon
-        loopImg.current!.src = state.loop ? loopActiveIcon : loopIcon
         reverseImg.current!.src = reverseIcon
         pitchImg.current!.src = pitchIcon
         abLoopImg.current!.src = abLoopIcon
         pitchLFOStyle()
-        duration()
+        updateDuration()
         updateMetadata()
         stop()
         play()
@@ -955,75 +976,75 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         setTimeout(() => {
             applyEffects()
         }, 100)
-        saveState()
     }
 
-    const loop = async (value?: boolean) => {
-        let condition = value !== undefined ? value === false : state.loop === true
+    const updateLoop = async (value?: boolean) => {
+        let newLoop = loop
+        let condition = value !== undefined ? value === false : newLoop === true
         if (condition) {
             loopImg.current!.src = loopIcon
-            state.loop = false
+            newLoop = false
             Tone.Transport.loop = false
-            if (state.abloop) toggleAB()
+            if (abloop) toggleAB()
         } else {
             loopImg.current!.src = loopActiveIcon
-            state.loop = true
+            newLoop = true
             Tone.Transport.loop = true
-            Tone.Transport.loopStart = state.abloop ? (state.loopStart / 1000) * state.duration : 0
-            Tone.Transport.loopEnd = state.abloop ? (state.loopEnd / 1000) * state.duration : state.duration
+            Tone.Transport.loopStart = abloop ? (loopStart / 1000) * duration : 0
+            Tone.Transport.loopEnd = abloop ? (loopEnd / 1000) * duration : duration
         }
+        setLoop(newLoop)
         updateMetadata()
-        saveState()
     }
 
     const seek = (value: number) => {
-        state.dragging = false
+        setDragging(false)
         let percent = value / 100     
-        if (state.reverse === true) {
+        if (reverse) {
             updateSliderPos((percent) * 100)
-            secondsProgress.current!.innerText = functions.formatSeconds(state.duration - Tone.Transport.seconds)
-            let value = (1-percent) * state.duration
+            secondsProgress.current!.innerText = functions.formatSeconds(duration - Tone.Transport.seconds)
+            let value = (1-percent) * duration
             if (value < 0) value = 0
-            if (value > state.duration - 1) value = state.duration - 1
+            if (value > duration - 1) value = duration - 1
             Tone.Transport.seconds = value
         } else {
             updateSliderPos(percent * 100)
             secondsProgress.current!.innerText = functions.formatSeconds(Tone.Transport.seconds)
-            let value = percent * state.duration
+            let value = percent * duration
             if (value < 0) value = 0
-            if (value > state.duration - 1) value = state.duration - 1
+            if (value > duration - 1) value = duration - 1
             Tone.Transport.seconds = value
         }
-        if (state.midi) playMIDI()
+        if (midi) playMIDI()
         if (Tone.Transport.state === "paused" || Tone.Transport.state === "stopped") play(true)
     }
 
     const rewind = (value: number) => {
-        const current = state.reverse ? state.duration - Tone.Transport.seconds : Tone.Transport.seconds
+        const current = reverse ? duration - Tone.Transport.seconds : Tone.Transport.seconds
         const seconds = current - value
-        const percent = seconds / state.duration * 100
+        const percent = seconds / duration * 100
         seek(percent)
     }
 
     const fastforward = (value: number) => {
-        const current = state.reverse ? state.duration - Tone.Transport.seconds : Tone.Transport.seconds
+        const current = reverse ? duration - Tone.Transport.seconds : Tone.Transport.seconds
         const seconds = current + value
-        const percent = seconds / state.duration * 100
+        const percent = seconds / duration * 100
         seek(percent)
     }
 
     const updateProgressText = (value: number) => {
         value = value / 10
         let percent = value / 100
-        if (state.reverse === true) {
-            secondsProgress.current!.innerText = functions.formatSeconds(state.duration - ((1-percent) * state.duration))
+        if (reverse) {
+            secondsProgress.current!.innerText = functions.formatSeconds(duration - ((1-percent) * duration))
         } else {
-            secondsProgress.current!.innerText = functions.formatSeconds(percent * state.duration)
+            secondsProgress.current!.innerText = functions.formatSeconds(percent * duration)
         }
     }
 
     const updateProgressTextAB = (value: number[]) => {
-        if (state.loopStart === value[0]) {
+        if (loopStart === value[0]) {
             updateProgressText(value[1])
         } else {
             updateProgressText(value[0])
@@ -1031,18 +1052,31 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const updateMetadata = () => {
-        songTitle.current!.innerText = state.songName
-        songCover.current!.src = state.songCover
+        songNameRef.current!.innerText = songName
+        songCoverRef.current!.src = songCover
     }
 
     
     const updateSynth = (event: any, newState: any) => {
-        state = {...state, ...newState}
-        if (state.midi) playMIDI()
-        lfoNode.port.postMessage({lfoShape: state.wave})
+        let newAttack = newState?.attack ? newState.attack : attack
+        let newDecay = newState?.decay ? newState.decay : decay
+        let newSustain = newState?.sustain ? newState.sustain : sustain
+        let newRelease = newState?.release ? newState.release : release
+        let newPoly = newState?.poly ? newState.poly : poly
+        let newPortamento = newState?.portamento ? newState.portamento : portamento
+        let newWave = newState?.wave ? newState.wave : wave
+        setAttack(newAttack)
+        setDecay(newDecay)
+        setSustain(newSustain)
+        setRelease(newRelease)
+        setPoly(newPoly)
+        setPortamento(newPortamento)
+        if (midi) playMIDI()
+        lfoNode.port.postMessage({lfoShape: newWave})
     }
 
     const playMIDI = async (applyState?: any) => {
+        let state = {speed, pitch, reverse, preservesPitch, midiFile, midiDuration}
         const localState = applyState ? applyState.state : state
         const synthArray = applyState ? applyState.synths : synths
         if (!localState.midiFile) return
@@ -1050,10 +1084,10 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         disposeSynths(synthArray)
         midi.tracks.forEach((track: any) => {
             let synth = null as any
-            if (state.poly) {
-                synth = new Tone.PolySynth(Tone.Synth, {oscillator: {type: state.wave as any}, envelope: {attack: state.attack, decay: state.decay, sustain: state.sustain, release: state.release}, portamento: state.portamento, volume: -6}).sync()
+            if (poly) {
+                synth = new Tone.PolySynth(Tone.Synth, {oscillator: {type: wave as any}, envelope: {attack, decay, sustain, release}, portamento, volume: -6}).sync()
             } else {
-                synth = new Tone.Synth({oscillator: {type: state.wave as any}, envelope: {attack: state.attack, decay: state.decay, sustain: state.sustain, release: state.release}, portamento: state.portamento, volume: -6}).sync()
+                synth = new Tone.Synth({oscillator: {type: wave as any}, envelope: {attack, decay, sustain, release}, portamento, volume: -6}).sync()
             }
             if (!applyState) synth.toDestination()
             synthArray.push(synth)
@@ -1090,13 +1124,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (val > totalDuration - 1) val = totalDuration - 1
             Tone.Transport.seconds = val
         }
-        duration(totalDuration)
+        updateDuration(totalDuration)
         updateMetadata()
         applyEffects()
     }
 
     const uploadMIDI = async (file: string) => {
-        state.midi = true
+        setMidi(true)
         const midi = await Midi.fromUrl(file)
         let totalDuration = 0
         midi.tracks.forEach(track => {
@@ -1104,13 +1138,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 if (note.time + note.duration > totalDuration) totalDuration = note.time + note.duration
             })
         })
-        state.midiDuration = totalDuration
-        state.bpm = midi.header.tempos[0].bpm
-        state.songCover = midiPlaceholder
-        state.songName = path.basename(file).replace(".mid", "")
-        state.song = file
-        state.songUrl = ""
-        state.midiFile = midi
+        setMidiDuration(totalDuration)
+        setBpm(midi.header.tempos[0].bpm)
+        setSongCover(midiPlaceholder)
+        setSongName(path.basename(file).replace(".mid", ""))
+        setSong(file)
+        setSongUrl("")
+        setMidiFile(midi)
         updateRecentFiles()
         switchState()
         stop()
@@ -1122,7 +1156,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (!file) return
         if (path.extname(file) === ".mid") return uploadMIDI(file)
         if (process.platform === "win32") if (!file.startsWith("file:///")) file = `file:///${file}`
-        state.midi = false
+        setMidi(false)
         const fileObject = await functions.getFile(file)
         const tagInfo = await new Promise((resolve, reject) => {
             new jsmediatags.Reader(fileObject).read({onSuccess: (tagInfo: any) => resolve(tagInfo), onError: (error: any) => reject(error)})   
@@ -1133,16 +1167,16 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             for (let i = 0; i < picture.data.length; i++) {
                 b64 += String.fromCharCode(picture.data[i])
             }
-            state.songCover = `data:${picture.format};base64,${btoa(b64)}`
+            setSongCover(`data:${picture.format};base64,${btoa(b64)}`)
         } else {
-            state.songCover = placeholder
+            setSongCover(placeholder)
         }
-        state.songName = path.basename(file).replace(".mp3", "").replace(".wav", "").replace(".flac", "").replace(".ogg", "")
-        state.song = file
-        state.songUrl = ""
-        player.load(state.song)
+        setSongName(path.basename(file).replace(".mp3", "").replace(".wav", "").replace(".flac", "").replace(".ogg", ""))
+        setSong(file)
+        setSongUrl("")
+        player.load(file)
         await Tone.loaded()
-        duration()
+        updateDuration()
         updateMetadata()
         updateRecentFiles()
         switchState()
@@ -1152,56 +1186,54 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const applyAB = (duration: number) => {
-        if (!state.abloop) return
+        if (!abloop) return
         let percent = duration / 100.0
-        if (state.reverse) {
-            Tone.Transport.loopStart = (100 - (state.loopEnd / 10)) * percent
-            Tone.Transport.loopEnd = (100 - (state.loopStart / 10)) * percent
+        if (reverse) {
+            Tone.Transport.loopStart = (100 - (loopEnd / 10)) * percent
+            Tone.Transport.loopEnd = (100 - (loopStart / 10)) * percent
         } else {
-            Tone.Transport.loopStart = (state.loopStart / 10) * percent
-            Tone.Transport.loopEnd = (state.loopEnd / 10) * percent
+            Tone.Transport.loopStart = (loopStart / 10) * percent
+            Tone.Transport.loopEnd = (loopEnd / 10) * percent
         }
     }
 
-    const abloop = (value: number[]) => {
-        state.loopStart = value[0]
-        state.loopEnd = value[1]
-        state.dragging = false
+    const updateABLoop = (value: number[]) => {
+        setLoopStart(value[0])
+        setLoopEnd(value[1])
+        setDragging(false)
         Tone.Transport.loop = true
         if (Tone.Transport.state === "paused") Tone.Transport.start()
-        applyAB(state.duration)
+        applyAB(duration)
         if (Tone.Transport.loopStart === Tone.Transport.loopEnd) Tone.Transport.loopStart = (Tone.Transport.loopEnd as number) - 1
         if ((Tone.Transport.seconds >= Number(Tone.Transport.loopStart)) && (Tone.Transport.seconds <= Number(Tone.Transport.loopEnd))) return
         let val = Number(Tone.Transport.loopStart)
         if (val < 0) val = 0
-        if (val > state.duration - 1) val = state.duration - 1
+        if (val > duration - 1) val = duration - 1
         Tone.Transport.seconds = val
-        if (state.midi) playMIDI()
-        saveState()
+        if (midi) playMIDI()
     }
 
     const toggleAB = (value?: boolean) => {
         let condition = value !== undefined ? value === true : abSlider.current.slider.style.display === "none"
         if (condition) {
             abSlider.current.slider.style.display = "flex"
-            state.abloop = true
-            state.loop = true
-            if (!state.loopEnd) state.loopEnd = 1000
+            setABLoop(true)
+            setLoop(true)
+            if (!loopEnd) setLoopEnd(1000)
             loopImg.current!.src = loopActiveIcon
             abLoopImg.current!.src = abLoopActiveIcon
             Tone.Transport.loop = true
-            Tone.Transport.loopStart = (state.loopStart / 1000) * state.duration
-            Tone.Transport.loopEnd = (state.loopEnd / 1000) * state.duration
-            updateABSliderPos([state.loopStart, state.loopEnd])
+            Tone.Transport.loopStart = (loopStart / 1000) * duration
+            Tone.Transport.loopEnd = ((loopEnd || 1000) / 1000) * duration
+            updateABSliderPos([loopStart, (loopEnd || 1000)])
         } else {
             abSlider.current.slider.style.display = "none"
-            state.abloop = false
+            setABLoop(false)
             abLoopImg.current!.src = abLoopIcon
             Tone.Transport.loopStart = 0
-            Tone.Transport.loopEnd = state.duration
+            Tone.Transport.loopEnd = duration
         }
         updateMetadata()
-        saveState()
     }
 
     const applyState = async (localState: any, player: Tone.Player) => {
@@ -1210,21 +1242,26 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         await Tone.loaded()
         let editCode = ""
         if (localState.speed !== 1) {
-            speed(undefined, apply)
+            updateSpeed(undefined, apply)
             editCode += "-speed"
         }
         if (localState.reverse !== false) {
-            reverse(undefined, apply)
+            updateReverse(undefined, apply)
             editCode += "-reverse"
         } 
         if (localState.pitch !== 0) {
-            pitch(undefined, apply)
+            updatePitch(undefined, apply)
             editCode += "-pitch"
         }
         if (localState.abloop !== false) {
             editCode += "-loop"
         }
         let effectNodes = [] as any
+        if (localState.sampleRate !== 44100) {
+            const bit = await bitcrush(null, localState, true) as any
+            effectNodes.push(bit)
+            editCode += "-bitcrush"
+        }
         if (localState.reverbMix !== 0) {
             const verb = await reverb(null, localState, true) as Tone.Reverb
             effectNodes.push(verb)
@@ -1234,6 +1271,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             const del = await delay(null, localState, true) as Tone.PingPongDelay
             effectNodes.push(del)
             editCode += "-delay"
+        }
+        if (localState.phaserMix !== 0) {
+            const phas = await phaser(null, localState, true) as Tone.Phaser
+            effectNodes.push(phas)
+            editCode += "-phaser"
         }
         if (localState.lowpassCutoff !== 100) {
             const low = await lowpass(null, localState, true) as Tone.BiquadFilter
@@ -1255,7 +1297,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             effectNodes.push(low)
             editCode += "-lowshelf"
         }
-        state.editCode = editCode
+        setEditCode(editCode)
         const current = player
         return {current, effectNodes}
     }
@@ -1277,6 +1319,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             editCode += "-loop"
         }
         let effectNodes = [] as any
+        if (localState.sampleRate !== 44100) {
+            const bit = await bitcrush(null, localState, true) as any
+            effectNodes.push(bit)
+            editCode += "-bitcrush"
+        }
         if (localState.reverbMix !== 0) {
             const verb = await reverb(null, localState, true) as Tone.Reverb
             effectNodes.push(verb)
@@ -1286,6 +1333,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             const del = await delay(null, localState, true) as Tone.PingPongDelay
             effectNodes.push(del)
             editCode += "-delay"
+        }
+        if (localState.phaserMix !== 0) {
+            const phas = await phaser(null, localState, true) as Tone.Phaser
+            effectNodes.push(phas)
+            editCode += "-phaser"
         }
         if (localState.lowpassCutoff !== 100) {
             const low = await lowpass(null, localState, true) as Tone.BiquadFilter
@@ -1307,7 +1359,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             effectNodes.push(low)
             editCode += "-lowshelf"
         }
-        state.editCode = editCode
+        setEditCode(editCode)
         return {synthArray: synths, effectNodes}
     }
 
@@ -1316,7 +1368,10 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         return Tone.Offline(async (offlineContext) => {
             let player = new Tone.Player().sync()
             let synths = [] as Tone.PolySynth[]
-            if (state.midi) {
+            let state = {speed, pitch, reverse, preservesPitch, abloop, sampleRate, reverbMix, reverbDecay, delayMix, 
+            delayTime, delayFeedback, phaserMix, phaserFrequency, highpassCutoff, lowpassCutoff, highshelfGain, highshelfCutoff, 
+            lowshelfGain, lowshelfCutoff, midiFile, pitchLFO, pitchLFORate, bpm, wave, midiDuration}
+            if (midi) {
                 const {synthArray, effectNodes} = await applyMIDIState(state, synths)
                 synthArray.forEach((s) => s.chain(...[...effectNodes, offlineContext.destination]))
             } else {
@@ -1365,55 +1420,55 @@ const AudioPlayer: React.FunctionComponent = (props) => {
 
     const download = async () => {
         if (!checkBuffer()) return
-        const defaultPath = `${functions.decodeEntities(state.songName)}${state.editCode}`
+        const defaultPath = `${functions.decodeEntities(songName)}${editCode}`
         const savePath = await ipcRenderer.invoke("save-dialog", defaultPath)
         if (!savePath) return
         if (path.extname(savePath) === ".mid") {
-            if (!state.midi) return
-            const midi = new Midi()
-            midi.header = state.midiFile.header
-            state.midiFile.tracks.forEach((track: any) => {
-                const newTrack = midi.addTrack()
-                if (state.reverse) {
+            if (!midi) return
+            const newMidi = new Midi()
+            newMidi.header = midiFile.header
+            midiFile.tracks.forEach((track: any) => {
+                const newTrack = newMidi.addTrack()
+                if (reverse) {
                     const reverseNotes = track.notes.slice().reverse()
                     const initialTime = reverseNotes[0].time
                     reverseNotes.forEach((reverseNote: any) => {
                         let transposed = reverseNote.name
-                        if (state.preservesPitch) {
-                            transposed = functions.transposeNote(reverseNote.name, state.pitch)
+                        if (preservesPitch) {
+                            transposed = functions.transposeNote(reverseNote.name, pitch)
                         } else {
-                            transposed = functions.transposeNote(reverseNote.name, state.pitch + functions.noteFactor(state.speed))
+                            transposed = functions.transposeNote(reverseNote.name, pitch + functions.noteFactor(speed))
                         }
                         reverseNote.name = transposed
-                        reverseNote.duration = reverseNote.duration / state.speed
-                        reverseNote.time = Math.abs(reverseNote.time - initialTime) / state.speed
+                        reverseNote.duration = reverseNote.duration / speed
+                        reverseNote.time = Math.abs(reverseNote.time - initialTime) / speed
                         newTrack.addNote(reverseNote)
                     })
                 } else {
                     const notes = track.notes.slice()
                     notes.forEach((note: any) => {
                         let transposed = note.name
-                        if (state.preservesPitch) {
-                            transposed = functions.transposeNote(note.name, state.pitch)
+                        if (preservesPitch) {
+                            transposed = functions.transposeNote(note.name, pitch)
                         } else {
-                            transposed = functions.transposeNote(note.name, state.pitch + functions.noteFactor(state.speed))
+                            transposed = functions.transposeNote(note.name, pitch + functions.noteFactor(speed))
                         }
                         note.name = transposed
-                        note.duration = note.duration / state.speed
-                        note.time = note.time / state.speed
+                        note.duration = note.duration / speed
+                        note.time = note.time / speed
                         newTrack.addNote(note)
                     })
                 }
             })
-            fs.writeFileSync(savePath, Buffer.from(midi.toArray()))
+            fs.writeFileSync(savePath, Buffer.from(newMidi.toArray()))
         } else {
-            let duration = state.duration
+            let newDuration = duration
             let start = 0
-            if (state.abloop) {
-                start = state.loopStart
-                duration = ((state.loopEnd / 1000) * state.duration) - ((state.loopStart / 1000) * state.duration)
+            if (abloop) {
+                start = loopStart
+                newDuration = ((loopEnd / 1000) * duration) - ((loopStart / 1000) * duration)
             }
-            const audioBuffer = await render(start, duration)
+            const audioBuffer = await render(start, newDuration)
             if (path.extname(savePath) === ".mp3") {
                 audioEncoder(audioBuffer.get(), 320, null, async (blob: Blob) => {
                     const mp3 = await blob.arrayBuffer() as any
@@ -1434,19 +1489,20 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         searchBox.current!.value = ""
         const songBuffer = await ipcRenderer.invoke("get-song", value)
         if (songBuffer) {
-            state.midi = false
+            setMidi(false)
             const songName = await ipcRenderer.invoke("get-song-name", value)
             let artwork = await ipcRenderer.invoke("get-art", value)
             if (artwork.includes("ytimg")) artwork = await functions.cropToCenterSquare(artwork)
-            window.URL.revokeObjectURL(state.song)
+            window.URL.revokeObjectURL(song)
             const blob = new Blob([new DataView(songBuffer)], {type: "audio/mpeg"})
-            state.songName = songName
-            state.song = window.URL.createObjectURL(blob)
-            state.songCover = artwork
-            state.songUrl = value
-            player.load(state.song)
+            const file = window.URL.createObjectURL(blob)
+            setSongName(songName)
+            setSong(file)
+            setSongCover(artwork)
+            setSongUrl(value)
+            player.load(file)
             await Tone.loaded()
-            duration()
+            updateDuration()
             updateMetadata()
             updateRecentFiles()
             switchState()
@@ -1458,56 +1514,31 @@ const AudioPlayer: React.FunctionComponent = (props) => {
 
     const updateRecentFiles = () => {
         ipcRenderer.invoke("update-recent", {
-            songName: state.songName, 
-            song: state.song,
-            songCover: state.songCover,
-            songUrl: state.songUrl,
-            duration: state.midi ? state.midiDuration : player.buffer.duration,
-            midi: state.midi,
-            bpm: state.bpm
+            songName, song, songCover, songUrl, midi, bpm,
+            duration: midi ? midiDuration : player.buffer.duration
         })
     }
 
     const previous = () => {
         ipcRenderer.invoke("get-previous", {
-            songName: state.songName, 
-            song: state.song,
-            songCover: state.songCover,
-            songUrl: state.songUrl,
-            duration: state.midi ? state.duration : player.buffer.duration
+            songName, song, songCover, songUrl,
+            duration: midi ? duration : player.buffer.duration
         })
     }
 
     const next = () => {
         ipcRenderer.invoke("get-next", {
-            songName: state.songName, 
-            song: state.song,
-            songCover: state.songCover,
-            songUrl: state.songUrl,
-            duration: state.midi ? state.duration : player.buffer.duration
+            songName, song, songCover, songUrl,
+            duration: midi ? duration : player.buffer.duration
         })
     }
-
-    /* JS Media Queries */
-    useEffect(() => {
-        const phoneMediaQuery = (query: MediaQueryListEvent | MediaQueryList) => {
-            if (query.matches) {
-                searchBox.current!.placeholder = "YT, SC, or BC link..."
-            } else {
-                searchBox.current!.placeholder = "Youtube, Soundcloud, or Bandcamp link..."
-            }
-        }
-        const media = window.matchMedia("(max-width: 65rem)")
-        media.addListener(phoneMediaQuery)
-        phoneMediaQuery(media)
-    }, [])
 
     const toggleHover = (query: string, hover?: boolean) => {
         if (query === "reverse") {
             if (hover) {
                 reverseImg.current!.src = reverseHoverIcon
             } else {
-                if (state.reverse) {
+                if (reverse) {
                     reverseImg.current!.src = reverseActiveIcon
                 } else {
                     reverseImg.current!.src = reverseIcon
@@ -1517,7 +1548,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (hover) {
                 speedImg.current!.src = speedHoverIcon
             } else {
-                if (state.speed === 1) {
+                if (speed === 1) {
                     speedImg.current!.src = speedIcon
                 } else {
                     speedImg.current!.src = speedActiveIcon
@@ -1527,7 +1558,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (hover) {
                 pitchImg.current!.src = pitchHoverIcon
             } else {
-                if (state.pitch === 0) {
+                if (pitch === 0) {
                     pitchImg.current!.src = pitchIcon
                 } else {
                     pitchImg.current!.src = pitchActiveIcon
@@ -1537,7 +1568,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (hover) {
                 loopImg.current!.src = loopHoverIcon
             } else {
-                if (state.loop) {
+                if (loop) {
                     loopImg.current!.src = loopActiveIcon
                 } else {
                     loopImg.current!.src = loopIcon
@@ -1547,7 +1578,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (hover) {
                 abLoopImg.current!.src = abLoopHoverIcon
             } else {
-                if (state.abloop) {
+                if (abloop) {
                     abLoopImg.current!.src = abLoopActiveIcon
                 } else {
                     abLoopImg.current!.src = abLoopIcon
@@ -1561,14 +1592,14 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             }
         } else if (query === "play") {
             if (hover) {
-                state.playHover = true
+                setPlayHover(true)
                 if (Tone.Transport.state === "started") {
                     playButton.current!.src = pauseHoverIcon
                 } else {
                     playButton.current!.src = playHoverIcon
                 }
             } else {
-                state.playHover = false
+                setPlayHover(false)
                 if (Tone.Transport.state === "started") {
                     playButton.current!.src = pauseIcon
                 } else {
@@ -1589,22 +1620,22 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             }
         } else if (query === "volume") {
             if (hover) {
-                state.volumeHover = true
-                if (state.volume === 0 || state.muted) {
+                setVolumeHover(true)
+                if (volume === 0 || muted) {
                     volumeRef.current!.src = muteHoverIcon
                 } else {
-                    if (state.volume <= 0.5) {
+                    if (volume <= 0.5) {
                         volumeRef.current!.src = volumeLowHoverIcon
                     } else {
                         volumeRef.current!.src = volumeHoverIcon
                     }
                 }
             } else {
-                state.volumeHover = false
-                if (state.volume === 0 || state.muted) {
+                setVolumeHover(false)
+                if (volume === 0 || muted) {
                     volumeRef.current!.src = muteIcon
                 } else {
-                    if (state.volume <= 0.5) {
+                    if (volume <= 0.5) {
                         volumeRef.current!.src = volumeLowIcon
                     } else {
                         volumeRef.current!.src = volumeIcon
@@ -1615,8 +1646,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const bitcrush = async (event: any, effect?: any, noApply?: boolean) => {
-        state = {...state, ...effect}
-        if (state.sampleRate === 100) {
+        let newSampleRate = effect?.sampleRate ? effect.sampleRate : sampleRate
+        if (newSampleRate === 100) {
             removeEffect("bitcrush")
         } else {
             if (!bitcrusherNode) {
@@ -1627,7 +1658,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 await context.addAudioWorkletModule(bitcrusherURL, "bitcrusher")
                 bitcrusherNode = context.createAudioWorkletNode("bitcrush-processor")
             }
-            bitcrusherNode.parameters.get("sampleRate").value = functions.logSlider2(state.sampleRate, 100, 44100)
+            bitcrusherNode.parameters.get("sampleRate").value = functions.logSlider2(newSampleRate, 100, 44100)
             if (noApply) return bitcrusherNode
             pushEffect("bitcrush", bitcrusherNode)
             applyEffects()
@@ -1635,11 +1666,12 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const reverb = async (event: any, effect?: any, noApply?: boolean) => {
-        state = {...state, ...effect}
-        if (state.reverbMix === 0) {
+        let newReverbMix = effect?.reverbMix ? effect.reverbMix : reverbMix
+        let newReverbDecay = effect?.reverbDecay ? effect.reverbDecay : reverbDecay
+        if (newReverbMix === 0) {
             removeEffect("reverb")
         } else {
-            const reverb = new Tone.Reverb({wet: state.reverbMix, decay: state.reverbDecay})
+            const reverb = new Tone.Reverb({wet: newReverbMix, decay: newReverbDecay})
             if (noApply) return reverb
             pushEffect("reverb", reverb)
             applyEffects()
@@ -1647,11 +1679,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const delay = async (event: any, effect: any, noApply?: boolean) => {
-        state = {...state, ...effect}
-        if (state.delayMix === 0) {
+        let newDelayMix = effect?.delayMix ? effect.delayMix : delayMix
+        let newDelayTime = effect?.delayTime ? effect.delayTime : delayTime
+        let newDelayFeedback = effect?.delayFeedback ? effect.delayFeedback : delayFeedback
+        if (newDelayMix === 0) {
             removeEffect("delay")
         } else {
-            const delay = new Tone.PingPongDelay({wet: state.delayMix, delayTime: state.delayTime, feedback: state.delayFeedback})
+            const delay = new Tone.PingPongDelay({wet: newDelayMix, delayTime: newDelayTime, feedback: newDelayFeedback})
             if (noApply) return delay
             pushEffect("delay", delay)
             applyEffects()
@@ -1659,11 +1693,12 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const phaser = async (event: any, effect?: any, noApply?: boolean) => {
-        state = {...state, ...effect}
-        if (state.phaserMix === 0) {
+        let newPhaserMix = effect?.phaserMix ? effect.phaserMix : phaserMix
+        let newPhaserFrequency = effect?.phaserFrequency ? effect.phaserFrequency : phaserFrequency
+        if (newPhaserMix === 0) {
             removeEffect("phaser")
         } else {
-            const phaser = new Tone.Phaser({wet: state.phaserMix, frequency: state.phaserFrequency})
+            const phaser = new Tone.Phaser({wet: newPhaserMix, frequency: newPhaserFrequency})
             if (noApply) return phaser
             pushEffect("phaser", phaser)
             applyEffects()
@@ -1671,11 +1706,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const lowpass = async (event: any, effect: any, noApply?: boolean) => {
-        state = {...state, ...effect}
-        if (state.lowpassCutoff === 100) {
+        let newLowpassCutoff = effect?.lowpassCutoff ? effect.lowpassCutoff : lowpassCutoff
+        if (newLowpassCutoff === 100) {
             removeEffect("lowpass")
         } else {
-            const low = new Tone.BiquadFilter({type: "lowpass", frequency: functions.logSlider2(state.lowpassCutoff, 1, 20000)})
+            const low = new Tone.BiquadFilter({type: "lowpass", frequency: functions.logSlider2(newLowpassCutoff, 1, 20000)})
             if (noApply) return low
             pushEffect("lowpass", low)
             applyEffects()
@@ -1683,11 +1718,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const highpass = async (event: any, effect: any, noApply?: boolean) => {
-        state = {...state, ...effect}
-        if (state.highpassCutoff === 0) {
+        let newHighpassCutoff = effect?.highpassCutoff ? effect.highpassCutoff : highpassCutoff
+        if (newHighpassCutoff === 0) {
             removeEffect("highpass")
         } else {
-            const high = new Tone.BiquadFilter({type: "highpass", frequency: functions.logSlider2(state.highpassCutoff, 1, 20000)})
+            const high = new Tone.BiquadFilter({type: "highpass", frequency: functions.logSlider2(newHighpassCutoff, 1, 20000)})
             if (noApply) return high
             pushEffect("highpass", high)
             applyEffects()
@@ -1695,11 +1730,12 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const highshelf = async (event: any, effect: any, noApply?: boolean) => {
-        state = {...state, ...effect}
-        if (state.highshelfGain === 0) {
+        let newHighshelfGain = effect?.highshelfGain ? effect.highshelfGain : highshelfGain
+        let newHighshelfCutoff = effect?.highshelfCutoff ? effect.highshelfCutoff : highshelfCutoff
+        if (newHighshelfGain === 0) {
             removeEffect("highshelf")
         } else {
-            const high = new Tone.BiquadFilter({type: "highshelf", frequency: functions.logSlider2(state.highshelfCutoff, 1, 20000), gain: state.highshelfGain})
+            const high = new Tone.BiquadFilter({type: "highshelf", frequency: functions.logSlider2(newHighshelfCutoff, 1, 20000), gain: newHighshelfGain})
             if (noApply) return high
             pushEffect("highshelf", high)
             applyEffects()
@@ -1707,11 +1743,12 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     }
 
     const lowshelf = async (event: any, effect: any, noApply?: boolean) => {
-        state = {...state, ...effect}
-        if (state.lowshelfGain === 0) {
+        let newLowshelfGain = effect?.lowshelfGain ? effect.lowshelfGain : lowshelfGain
+        let newLowshelfCutoff = effect?.lowshelfCutoff ? effect.lowshelfCutoff : lowshelfCutoff
+        if (newLowshelfGain === 0) {
             removeEffect("lowshelf")
         } else {
-            const low = new Tone.BiquadFilter({type: "lowshelf", frequency: functions.logSlider2(state.lowshelfCutoff, 1, 20000), gain: state.lowshelfGain})
+            const low = new Tone.BiquadFilter({type: "lowshelf", frequency: functions.logSlider2(newLowshelfCutoff, 1, 20000), gain: newLowshelfGain})
             if (noApply) return low
             pushEffect("lowshelf", low)
             applyEffects()
@@ -1720,7 +1757,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
 
     const resizeOn = () => {
         document.documentElement.style.cursor = "ns-resize"
-        state.resizeFlag = true
+        setResizeFlag(true)
     }
 
     const resizeOff = () => {
@@ -1739,7 +1776,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             speedPopup.current!.style.display = "flex"
         }
         setTimeout(() => {
-            updateSpeedPos(state.speed)
+            updateSpeedPos(speed)
         }, 100)
     }
 
@@ -1750,8 +1787,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             pitchPopup.current!.style.display = "flex"
         }
         setTimeout(() => {
-            updatePitchPos(state.pitch)
-            updatePitchLFOPos(state.pitchLFORate)
+            updatePitchPos(pitch)
+            updatePitchLFOPos(pitchLFORate)
         }, 100)
     }
 
@@ -1773,11 +1810,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             {/* Player */}
             <section className="player" onDoubleClick={resetResize}>
                 <div className="player-resize" onMouseEnter={() => resizeOn()} onMouseLeave={() => resizeOff()}></div>
-                <img ref={songCover} className="player-img" src={state.songCover}/>
+                <img ref={songCoverRef} className="player-img" src={songCover}/>
                 <div className="player-container">
                     <div className="player-row">
                         <div className="player-text-container">
-                            <h2 ref={songTitle} className="player-text">{state.songName}</h2>
+                            <h2 ref={songNameRef} className="player-text">{songName}</h2>
                         </div>
                         <div className="play-button-container">
                             <img className="player-button" src={previousIcon} ref={previousButton} onClick={() => previous()} width="25" height="25" onMouseEnter={() => toggleHover("previous", true)} onMouseLeave={() => toggleHover("previous")}/>
@@ -1789,37 +1826,37 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                         </div>
                         <div className="volume-container">
                             <img className="player-button" src={volumeIcon} ref={volumeRef} onClick={() => mute()} onMouseEnter={() => toggleHover("volume", true)} onMouseLeave={() => toggleHover("volume")} width="30" height="30"/>
-                            <Slider className="volume-slider" trackClassName="volume-slider-track" thumbClassName="volume-slider-handle" ref={volumeBar} onChange={(value) => {updateVolumePos(value); volume(value)}} min={0} max={1} step={0.05} defaultValue={1}/>
+                            <Slider className="volume-slider" trackClassName="volume-slider-track" thumbClassName="volume-slider-handle" ref={volumeBar} onChange={(value) => {updateVolumePos(value); updateVolume(value)}} min={0} max={1} step={0.05} defaultValue={1}/>
                         </div>
                     </div>
                     <div className="player-row">
-                    <img className="player-button" ref={reverseImg} src={reverseIcon} onClick={() => reverse()} width="30" height="30" onMouseEnter={() => toggleHover("reverse", true)} onMouseLeave={() => toggleHover("reverse")}/>
+                    <img className="player-button" ref={reverseImg} src={reverseIcon} onClick={() => updateReverse()} width="30" height="30" onMouseEnter={() => toggleHover("reverse", true)} onMouseLeave={() => toggleHover("reverse")}/>
                         <div className="speed-popup-container" ref={speedPopup} style={({display: "none"})}>
                             <div className="speed-popup">
-                                <Slider className="speed-slider" trackClassName="speed-slider-track" thumbClassName="speed-slider-handle" ref={speedBar} onChange={(value) => speed(value)} min={0.5} max={4} step={state.speedStep} defaultValue={1}/>
+                                <Slider className="speed-slider" trackClassName="speed-slider-track" thumbClassName="speed-slider-handle" ref={speedBar} onChange={(value) => updateSpeed(value)} min={0.5} max={4} step={speedStep} defaultValue={1}/>
                                 <div className="speed-checkbox-container">
                                     <p className="speed-text">Pitch?</p>
-                                    <img className="speed-checkbox" ref={speedCheckbox} src={!state.preservesPitch ? checkboxChecked : checkbox} onClick={() => preservesPitch()}/>
+                                    <img className="speed-checkbox" ref={speedCheckbox} src={!preservesPitch ? checkboxChecked : checkbox} onClick={() => updatePreservesPitch()}/>
                                 </div>       
                             </div>
                         </div>
                         <img className="player-button" src={speedIcon} ref={speedImg} onClick={() => showSpeedPopup()} width="30" height="30" onMouseEnter={() => toggleHover("speed", true)} onMouseLeave={() => toggleHover("speed")}/>
                         <div className="pitch-popup-container" ref={pitchPopup} style={({display: "none"})}>
                             <div className="pitch-popup">
-                                <Slider className="pitch-slider" trackClassName="pitch-slider-track" thumbClassName="pitch-slider-handle" ref={pitchBar} onChange={(value) => pitch(value)} min={-24} max={24} step={state.pitchStep} defaultValue={0}/>
+                                <Slider className="pitch-slider" trackClassName="pitch-slider-track" thumbClassName="pitch-slider-handle" ref={pitchBar} onChange={(value) => updatePitch(value)} min={-24} max={24} step={pitchStep} defaultValue={0}/>
                                 <div className="pitch-checkbox-container">
                                     <p className="speed-text">LFO?</p>
-                                    <img className="pitch-checkbox" ref={pitchCheckbox} src={state.pitchLFO ? checkboxChecked : checkbox} onClick={() => pitchLFO()}/>
+                                    <img className="pitch-checkbox" ref={pitchCheckbox} src={pitchLFO ? checkboxChecked : checkbox} onClick={() => updatePitchLFO()}/>
                                 </div>
-                                <div ref={pitchSlider}><Slider className="pitch-slider" trackClassName="pitch-slider-track" thumbClassName="pitch-slider-handle" ref={pitchLFOBar} onChange={(value) => pitchLFORate(value)} min={0} max={5} step={1} defaultValue={1}/></div>
+                                <div ref={pitchSlider}><Slider className="pitch-slider" trackClassName="pitch-slider-track" thumbClassName="pitch-slider-handle" ref={pitchLFOBar} onChange={(value) => updatePitchLFORate(value)} min={0} max={5} step={1} defaultValue={1}/></div>
                             </div>
                         </div>
                         <img className="player-button" src={pitchIcon} ref={pitchImg} onClick={() => showPitchPopup()} width="30" height="30" onMouseEnter={() => toggleHover("pitch", true)} onMouseLeave={() => toggleHover("pitch")}/>
-                        <div className="progress-container" onMouseUp={() => state.dragging = false}>
-                            <Slider className="progress-slider" trackClassName="progress-slider-track" thumbClassName="progress-slider-handle" ref={progressBar} min={0} max={1000} onBeforeChange={() => state.dragging = true} onChange={(value) => {updateSliderPos(value / 10); updateProgressText(value)}} onAfterChange={(value) => seek(value / 10)} defaultValue={0}/>
-                            <Slider className="ab-slider" trackClassName="ab-slider-track" thumbClassName="ab-slider-thumb" ref={abSlider} min={0} max={1000} defaultValue={[0, 1000]} onBeforeChange={() => state.dragging = true} onChange={(value) => {updateABSliderPos(value); updateProgressTextAB(value)}} onAfterChange={(value) => abloop(value)} pearling minDistance={1}/>
+                        <div className="progress-container" onMouseUp={() => setDragging(false)}>
+                            <Slider className="progress-slider" trackClassName="progress-slider-track" thumbClassName="progress-slider-handle" ref={progressBar} min={0} max={1000} onBeforeChange={() => setDragging(true)} onChange={(value) => {updateSliderPos(value / 10); updateProgressText(value)}} onAfterChange={(value) => seek(value / 10)} defaultValue={0}/>
+                            <Slider className="ab-slider" trackClassName="ab-slider-track" thumbClassName="ab-slider-thumb" ref={abSlider} min={0} max={1000} defaultValue={[0, 1000]} onBeforeChange={() => setDragging(true)} onChange={(value) => {updateABSliderPos(value); updateProgressTextAB(value)}} onAfterChange={(value) => updateABLoop(value)} pearling minDistance={1}/>
                         </div>
-                        <img className="player-button" ref={loopImg} src={loopIcon} onClick={() => loop()} width="30" height="30" onMouseEnter={() => toggleHover("loop", true)} onMouseLeave={() => toggleHover("loop")}/>
+                        <img className="player-button" ref={loopImg} src={loopIcon} onClick={() => updateLoop()} width="30" height="30" onMouseEnter={() => toggleHover("loop", true)} onMouseLeave={() => toggleHover("loop")}/>
                         <img className="player-button" ref={abLoopImg} src={abLoopIcon} onClick={() => toggleAB()} width="30" height="30" onMouseEnter={() => toggleHover("abloop", true)} onMouseLeave={() => toggleHover("abloop")}/>
                         <img className="player-button" ref={resetImg} src={resetIcon} onClick={() => reset()} width="30" height="30" onMouseEnter={() => toggleHover("reset", true)} onMouseLeave={() => toggleHover("reset")}/>
                     </div>
