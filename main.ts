@@ -25,6 +25,10 @@ const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:129.0) Gecko
 let workletPath = path.join(app.getAppPath(), "../../structures")
 if (!fs.existsSync(workletPath)) workletPath = path.join(__dirname, "../structures")
 
+ipcMain.handle("show-in-folder", async (event, savePath: string) => {
+  shell.showItemInFolder(path.normalize(savePath))
+})
+
 ipcMain.handle("get-bitcrusher-source", () => {
   let bitcrusherPath = path.join(workletPath, "bitcrusher.js")
   return fs.readFileSync(bitcrusherPath).toString()

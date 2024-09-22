@@ -4,6 +4,7 @@ import path from "path"
 import Slider from "react-slider"
 import * as Tone from "tone"
 import {Midi} from '@tonejs/midi'
+import {ID3Writer} from "browser-id3-writer"
 import jsmediatags from "jsmediatags"
 import functions from "../structures/functions"
 import searchIcon from "../assets/icons/search-icon.png"
@@ -1331,7 +1332,8 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 const {synthArray, effectNodes} = await applyMIDIState(state, synths)
                 synthArray.forEach((s) => s.chain(...[...effectNodes, offlineContext.destination]))
             } else {
-                const {current, effectNodes} = await applyState(state, player)
+                let {current, effectNodes} = await applyState(state, player)
+                if (!effectNodes) effectNodes = []
                 // @ts-expect-error
                 const audioNode = new Tone.ToneAudioNode()
                 gainNode = new Tone.Gain(1)
@@ -1427,13 +1429,24 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             const audioBuffer = await render(start, duration)
             if (path.extname(savePath) === ".mp3") {
                 audioEncoder(audioBuffer.get(), 320, null, async (blob: Blob) => {
-                    const mp3 = await blob.arrayBuffer() as any
+                    let mp3 = await blob.arrayBuffer() as any
+                    if (state.songCover) {
+                        const imageBuffer = await fetch(state.songCover).then((r) => r.arrayBuffer())
+                        const writer = new ID3Writer(mp3)
+                        writer.setFrame("TIT2", state.songName)
+                        .setFrame("TLEN", state.duration)
+                        .setFrame("APIC" as any, {type: 3, data: imageBuffer, description: "Song Cover", useUnicodeEncoding: false} as any)
+                        writer.addTag()
+                        mp3 = await fetch(writer.getURL()).then((r) => r.arrayBuffer())
+                    }
                     fs.writeFileSync(savePath, Buffer.from(mp3, "binary"))
+                    ipcRenderer.invoke("show-in-folder", savePath)
                 })
             } else {
                 audioEncoder(audioBuffer.get(), null, null, async (blob: Blob) => {
                     const wav = await blob.arrayBuffer() as any
                     fs.writeFileSync(savePath, Buffer.from(wav, "binary"))
+                    ipcRenderer.invoke("show-in-folder", savePath)
                 })
             }
         }
