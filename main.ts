@@ -260,7 +260,6 @@ ipcMain.handle("save-dialog", async (event, defaultPath: string) => {
   const save = await dialog.showSaveDialog(window, {
     defaultPath,
     filters: [
-      {name: "All Files", extensions: ["*"]},
       {name: "MP3", extensions: ["mp3"]},
       {name: "WAV", extensions: ["wav"]},
       {name: "MIDI", extensions: ["mid"]}
