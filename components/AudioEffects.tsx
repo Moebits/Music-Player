@@ -1,7 +1,7 @@
 import {ipcRenderer} from "electron"
 import React, {useContext, useEffect, useRef, useState} from "react"
 import Slider from "react-slider"
-import "../styles/audioeffects.less"
+import "./styles/audioeffects.less"
 
 const AudioEffects: React.FunctionComponent = (props) => {
     const [visible, setVisible] = useState(false)

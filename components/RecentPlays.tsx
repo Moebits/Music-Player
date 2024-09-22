@@ -5,7 +5,7 @@ import pageLeftButton from "../assets/icons/page-left.png"
 import pageLeftButtonHover from "../assets/icons/page-left-hover.png"
 import pageRightButton from "../assets/icons/page-right.png"
 import pageRightButtonHover from "../assets/icons/page-right-hover.png"
-import "../styles/recentplays.less"
+import "./styles/recentplays.less"
 
 let recent = [] as any[]
 let pages = [] as any
@@ -67,14 +67,14 @@ const RecentPlays: React.FunctionComponent = (props) => {
             if (!pages[pageIndex]?.[i]) {
                 row1.push(<img className="recent-square" src={square}/>)
             } else {
-                row1.push(<img className={`${checkYT(pages[pageIndex][i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(pages[pageIndex][i])} src={pages[pageIndex][i].songCover} onContextMenu={() => setDeleteQueue(pages[pageIndex][i])}/>)
+                row1.push(<img className="recent-img" onClick={() => invokePlay(pages[pageIndex][i])} src={pages[pageIndex][i].songCover} onContextMenu={() => setDeleteQueue(pages[pageIndex][i])}/>)
             }
         }
         for (let i = 4; i < 8; i++) {
             if (!pages[pageIndex]?.[i]) {
                 row2.push(<img className="recent-square" src={square}/>)
             } else {
-                row2.push(<img className={`${checkYT(pages[pageIndex][i]) ? "recent-img-yt" : "recent-img"}`} onClick={() => invokePlay(pages[pageIndex][i])} src={pages[pageIndex][i].songCover} onContextMenu={() => setDeleteQueue(pages[pageIndex][i])}/>)
+                row2.push(<img className="recent-img" onClick={() => invokePlay(pages[pageIndex][i])} src={pages[pageIndex][i].songCover} onContextMenu={() => setDeleteQueue(pages[pageIndex][i])}/>)
             }
         }
         return (

@@ -1,7 +1,7 @@
 import React from "react"
 import logo from "../assets/icons/logo.gif"
 import hibiki from "../assets/images/hibiki-chibi.png"
-import "../styles/logobar.less"
+import "./styles/logobar.less"
 
 const LogoBar: React.FunctionComponent = (props) => {
     return (

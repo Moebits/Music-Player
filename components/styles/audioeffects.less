@@ -1,7 +1,7 @@
-@import "../index.less";
+@import "../../index.less";
 @import "./titlebar.less";
 
-.synth-dialog {
+.effects-dialog {
     position: fixed;
     z-index: 800;
     display: flex;
@@ -14,12 +14,12 @@
     background-color: rgba(0, 0, 0, 0.5);
 }
 
-.synth-dialog-box {
+.effects-dialog-box {
     margin-top: -120px;
     width: 60%;
     height: 57%;
     border-radius: 10px;
-    background-color: var(--synth-color);
+    background-color: var(--effect-color);
     padding: 10px;
     display: flex;
     flex-direction: column;
@@ -27,7 +27,7 @@
     align-items: center;
 }
 
-.synth-container {
+.effects-container {
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -38,7 +38,7 @@
     padding-right: 10px;
 }
 
-.synth-title-container {
+.effects-title-container {
     display: flex;
     flex-direction: row;
     justify-content: center;
@@ -46,8 +46,8 @@
     width: 100%;
 }
 
-.synth-title {
-    color: var(--synth-text);
+.effects-title {
+    color: var(--effect-text);
     font-size: 20px;
     font-family: "Maven Pro", sans-serif;
     user-select: text;
@@ -57,7 +57,7 @@
     }
 }
 
-.synth-row-container {
+.effects-row-container {
     display: flex;
     flex-direction: column;
     margin-top: 10px;
@@ -66,7 +66,7 @@
     width: 100%;
 }
 
-.synth-row {
+.effects-row {
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -75,10 +75,10 @@
     margin-top: 10px;
 }
 
-.synth-text {
+.effects-text {
     user-select: text;
     cursor: text;
-    color: var(--synth-text);
+    color: var(--effect-text);
     font-family: "Yusei Magic", sans-serif;
     font-size: 15px;
     &::selection {
@@ -86,26 +86,26 @@
     }
 }
 
-.synth-slider {
+.fx-slider {
     width: 70%;
     border-radius: 0.2;
     align-items: center;
 }
 
-.synth-slider-track-1 {
+.fx-slider-track-1 {
     height: 0.4rem;
     background-color: black;
     border-radius: 0.2;
 }
 
-.synth-slider-track-0 {
+.fx-slider-track-0 {
     height: 0.4rem;
     background-color: #ff61b8;
     border-radius: 0.2;
 }
 
-.synth-slider-thumb {
-    content: url("../assets/icons/volume-thumb.png");
+.fx-slider-thumb {
+    content: url("../../assets/icons/volume-thumb.png");
     background-color: transparent;
     margin-top: -7px;
     border: none;
@@ -121,31 +121,4 @@
     &:focus {
         outline: none;
     }
-}
-
-.synth-porta-container {
-    display: flex;
-    width: 70%;
-    align-items: center;
-}
-
-.synth-poly-button {
-    width: 60px;
-    cursor: pointer;
-}
-
-.porta-slider {
-    margin-left: 20px;
-}
-
-.synth-wave {
-    width: 50px;
-    cursor: pointer;
-}
-
-.synth-wave-type {
-    height: 22px;
-    cursor: pointer;
-    margin-top: 5px;
-    margin-bottom: 5px;
 }

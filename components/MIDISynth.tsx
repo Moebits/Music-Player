@@ -33,7 +33,7 @@ import pwm from "../assets/icons/pwm.png"
 import pwmHover from "../assets/icons/pwm-hover.png"
 import fat from "../assets/icons/fat.png"
 import fatHover from "../assets/icons/fat-hover.png"
-import "../styles/midisynth.less"
+import "./styles/midisynth.less"
 
 const MIDISynth: React.FunctionComponent = (props) => {
     const [visible, setVisible] = useState(false)

@@ -218,4 +218,27 @@ export default class Functions {
         const [numerator, denominator] = fraction.split("/").map(Number)
         return numerator / denominator
     }
+
+    public static cropToCenterSquare = (image: string) => {
+        const img = new Image()
+        img.src = image
+        return new Promise<string>((resolve) => {
+            img.onload = () => {
+                const minDimension = Math.min(img.width, img.height)
+                const offsetX = (img.width - minDimension) / 2
+                const offsetY = (img.height - minDimension) / 2
+
+                const canvas = document.createElement("canvas")
+                canvas.width = minDimension
+                canvas.height = minDimension
+                const ctx = canvas.getContext("2d")
+
+                if (ctx) {
+                    ctx.drawImage(img, offsetX, offsetY, minDimension, minDimension, 0, 0, minDimension, minDimension)
+                    const base64 = canvas.toDataURL("image/png")
+                    resolve(base64)
+                }
+            }
+        })
+    }
 }

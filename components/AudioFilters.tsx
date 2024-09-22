@@ -2,7 +2,7 @@ import {ipcRenderer} from "electron"
 import React, {useContext, useEffect, useRef, useState} from "react"
 import Slider from "react-slider"
 import functions from "../structures/functions"
-import "../styles/audiofilters.less"
+import "./styles/audiofilters.less"
 
 const AudioFilters: React.FunctionComponent = (props) => {
     const [visible, setVisible] = useState(false)

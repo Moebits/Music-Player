@@ -1,4 +1,4 @@
-@import "../index.less";
+@import "../../index.less";
 
 @title-bar-height: 30px;
 
@@ -35,6 +35,17 @@
     left: 0px; 
 }
 
+.title-container-right  {
+    margin-left: 3px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    position: fixed;
+    z-index: 2000;
+    top: 0px;
+    right: 0px; 
+}
+
 .title {
     margin-left: 5px;
     user-select: text;
@@ -55,6 +66,16 @@
     z-index: 2000;
     top: 0px;
     right: 0px;
+}
+
+.title-bar-buttons-left {
+    -webkit-app-region: no-drag;
+    display: flex;
+    flex-direction: row;
+    position: fixed;
+    z-index: 2000;
+    top: 0px;
+    left: 0px;
 }
 
 .title-bar-button {

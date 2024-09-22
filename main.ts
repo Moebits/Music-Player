@@ -9,12 +9,8 @@ import pack from "./package.json"
 import Youtube from "youtube.ts"
 import Soundcloud from "soundcloud.ts"
 import functions from "./structures/functions"
-import util from "util"
-import child_process from "child_process"
-
 import fs from "fs"
 
-const exec = util.promisify(child_process.exec)
 require("@electron/remote/main").initialize()
 process.setMaxListeners(0)
 let window: Electron.BrowserWindow | null

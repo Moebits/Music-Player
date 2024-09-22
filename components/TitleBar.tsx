@@ -28,7 +28,7 @@ import synthButton from "../assets/icons/synth.png"
 import synthButtonHover from "../assets/icons/synth-hover.png"
 import pack from "../package.json"
 import path from "path"
-import "../styles/titlebar.less"
+import "./styles/titlebar.less"
 
 const TitleBar: React.FunctionComponent = (props) => {
     const [hoverClose, setHoverClose] = useState(false)
@@ -132,6 +132,7 @@ const TitleBar: React.FunctionComponent = (props) => {
             document.documentElement.style.setProperty("--version-reject-text", "#ff3370")
             document.documentElement.style.setProperty("--synth-color", "#090409")
             document.documentElement.style.setProperty("--synth-text", "#ff3068")
+            document.documentElement.style.setProperty("--recent-text", "white")
             setTheme("dark")
             ipcRenderer.invoke("save-theme", "dark")
         } else {
@@ -152,6 +153,7 @@ const TitleBar: React.FunctionComponent = (props) => {
             document.documentElement.style.setProperty("--version-reject-text", "black")
             document.documentElement.style.setProperty("--synth-color", "#ff3068")
             document.documentElement.style.setProperty("--synth-text", "black")
+            document.documentElement.style.setProperty("--recent-text", "black")
             setTheme("light")
             ipcRenderer.invoke("save-theme", "light")
         }
