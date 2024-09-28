@@ -46,6 +46,5 @@ Open an issue on my GitHub repository.
 
 ### Also See
 
-- [musicplayer.moe](https://github.com/Moebits/musicplayer.moe)
 - [Photo Viewer](https://github.com/Moebits/Photo-Viewer)
 - [Video Player](https://github.com/Moebits/Video-Player)
