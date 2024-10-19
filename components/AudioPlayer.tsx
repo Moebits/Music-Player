@@ -49,7 +49,7 @@ import audioEncoder from "audio-encoder"
 import fs from "fs"
 import "./styles/audioplayer.less"
 
-let timeout = null as any
+let timer = null as any
 let player: Tone.Player
 let synths = [] as Tone.PolySynth[]
 let audioNode: any
@@ -57,6 +57,7 @@ let effectNode: any
 let gainNode: any
 let soundtouchNode: any
 let staticSoundtouchNode: any
+let staticSoundtouchNode2: any
 let soundtouchURL = ""
 let lfoNode: any
 let lfoURL = ""
@@ -72,6 +73,7 @@ const initialize = async () => {
     await context.addAudioWorkletModule(soundtouchURL, "soundtouch")
     soundtouchNode = context.createAudioWorkletNode("soundtouch-processor")
     staticSoundtouchNode = context.createAudioWorkletNode("soundtouch-processor")
+    staticSoundtouchNode2 = context.createAudioWorkletNode("soundtouch-processor")
     const lfoSource = await ipcRenderer.invoke("get-lfo-source")
     const lfoBlob = new Blob([lfoSource], {type: "text/javascript"})
     lfoURL = window.URL.createObjectURL(lfoBlob)
@@ -99,10 +101,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
     const speedBar = useRef(null) as any
     const speedCheckbox = useRef(null) as React.RefObject<HTMLImageElement>
     const pitchCheckbox = useRef(null) as React.RefObject<HTMLImageElement>
+    const pitchBandCheckbox = useRef(null) as React.RefObject<HTMLImageElement>
     const pitchBar = useRef(null) as any
     const pitchLFOBar = useRef(null) as any
+    const pitchBandBar = useRef(null) as any
     const secondsProgress = useRef(null) as React.RefObject<HTMLSpanElement>
     const pitchSlider = useRef(null) as React.RefObject<HTMLDivElement>
+    const pitchBandSlider = useRef(null) as React.RefObject<HTMLDivElement>
     const secondsTotal = useRef(null) as React.RefObject<HTMLSpanElement>
     const abSlider = useRef(null) as React.RefObject<any>
     const searchBox = useRef(null) as React.RefObject<HTMLInputElement>
@@ -441,7 +446,9 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         savedLoop: [0, 1000],
         pitchLFO: false,
         pitchLFORate: 1,
-        stepFlag: false
+        stepFlag: false,
+        splitBands: false,
+        splitBandFreq: 500
     }
 
     const initialState = {...state}
@@ -459,6 +466,13 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         }
         if (saved.pitchLFORate !== undefined) {
             state.pitchLFORate = saved.pitchLFORate
+        }
+        if (saved.splitBands !== undefined) {
+            state.splitBands = saved.splitBands
+            pitchBandCheckbox.current!.src = state.splitBands ? checkboxChecked : checkbox
+        }
+        if (saved.splitBandFreq !== undefined) {
+            state.splitBandFreq = saved.splitBandFreq
         }
         if (saved.speed !== undefined) {
             state.speed = saved.speed
@@ -500,6 +514,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         if (synthSaved.poly !== undefined) state.poly = synthSaved.poly 
         if (synthSaved.portamento !== undefined) state.portamento = synthSaved.portamento
         pitchLFOStyle()
+        pitchBandStyle()
         updateVolumePos(1)
         updateBarPos()
     }
@@ -510,13 +525,16 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         speed(state.speed)
         pitch(state.pitch)
         pitchLFO(state.pitchLFO)
+        pitchBands(state.splitBands)
         reverse(state.reverse, apply)
         loop(state.loop)
         if (state.abloop) abloop([state.loopStart, state.loopEnd])
     }
 
     const saveState = () => {
-        ipcRenderer.invoke("save-state", {reverse: state.reverse, pitch: state.pitch, speed: state.speed, preservesPitch: state.preservesPitch, pitchLFO: state.pitchLFO, pitchLFORate: state.pitchLFORate, loop: state.loop, abloop: state.abloop, loopStart: state.loopStart, loopEnd: state.loopEnd})
+        ipcRenderer.invoke("save-state", {reverse: state.reverse, pitch: state.pitch, speed: state.speed, preservesPitch: state.preservesPitch, 
+        pitchLFO: state.pitchLFO, pitchLFORate: state.pitchLFORate, splitBands: state.splitBands, splitBandFreq: state.splitBandFreq,
+        loop: state.loop, abloop: state.abloop, loopStart: state.loopStart, loopEnd: state.loopEnd})
     }
 
     const removeEffect = (type: string) => {
@@ -541,6 +559,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         player.disconnect()
         soundtouchNode.disconnect()
         staticSoundtouchNode.disconnect()
+        staticSoundtouchNode2.disconnect()
         lfoNode.disconnect()
         if (synths.length) synths.forEach((s) => s.disconnect())
         const nodes = state.effects.map((e) => e?.node).filter(Boolean)
@@ -549,22 +568,57 @@ const AudioPlayer: React.FunctionComponent = (props) => {
             if (synths.length) synths.forEach((s) => s.chain(...[...nodes, Tone.Destination]))
         } else {
             if (state.pitchLFO) {
-                audioNode.input = player
-                effectNode.input = player
-                audioNode.input.connect(staticSoundtouchNode)
-                effectNode.input.connect(soundtouchNode)
-                staticSoundtouchNode.connect(lfoNode, 0, 0)
-                soundtouchNode.connect(lfoNode, 0, 1)
-                let currentNode = lfoNode
-                for (let i = 0; i < nodes.length; i++) {
-                    let node = nodes[i] instanceof Tone.ToneAudioNode ? nodes[i].input : nodes[i]
-                    currentNode.connect(node)
-                    currentNode = nodes[i]
+                if (state.splitBands) {
+                    const lowband = new Tone.Filter({type: "lowpass", frequency: state.splitBandFreq, Q: state.filterResonance, rolloff: getFilterSlope()})
+                    const highband = new Tone.Filter({type: "highpass", frequency: state.splitBandFreq, Q: state.filterResonance, rolloff: getFilterSlope()})
+                    const highbandEffect = new Tone.Filter({type: "highpass", frequency: state.splitBandFreq, Q: state.filterResonance, rolloff: getFilterSlope()})
+                    audioNode.input = player
+                    effectNode.input = player
+                    audioNode.input.connect(lowband)
+                    audioNode.input.connect(highband)
+                    effectNode.input.connect(highbandEffect)
+
+                    lowband.chain(...[staticSoundtouchNode2, ...nodes, audioNode.output])
+
+                    highband.connect(staticSoundtouchNode)
+                    highbandEffect.connect(soundtouchNode)
+                    staticSoundtouchNode.connect(lfoNode, 0, 0)
+                    soundtouchNode.connect(lfoNode, 0, 1)
+                    let currentNode = lfoNode
+                    for (let i = 0; i < nodes.length; i++) {
+                        let node = nodes[i] instanceof Tone.ToneAudioNode ? nodes[i].input : nodes[i]
+                        currentNode.connect(node)
+                        currentNode = nodes[i]
+                    }
+                    currentNode.connect(audioNode.output)
+                } else {
+                    audioNode.input = player
+                    effectNode.input = player
+                    audioNode.input.connect(staticSoundtouchNode)
+                    effectNode.input.connect(soundtouchNode)
+                    staticSoundtouchNode.connect(lfoNode, 0, 0)
+                    soundtouchNode.connect(lfoNode, 0, 1)
+                    let currentNode = lfoNode
+                    for (let i = 0; i < nodes.length; i++) {
+                        let node = nodes[i] instanceof Tone.ToneAudioNode ? nodes[i].input : nodes[i]
+                        currentNode.connect(node)
+                        currentNode = nodes[i]
+                    }
+                    currentNode.connect(audioNode.output)
                 }
-                currentNode.connect(audioNode.output)
             } else {
-                audioNode.input = player
-                audioNode.input.chain(...[soundtouchNode, ...nodes, audioNode.output])
+                if (state.splitBands) {
+                    const lowband = new Tone.Filter({type: "lowpass", frequency: state.splitBandFreq, Q: state.filterResonance, rolloff: getFilterSlope()})
+                    const highband = new Tone.Filter({type: "highpass", frequency: state.splitBandFreq, Q: state.filterResonance, rolloff: getFilterSlope()})
+                    audioNode.input = player
+                    audioNode.input.connect(lowband)
+                    audioNode.input.connect(highband)
+                    lowband.chain(...[staticSoundtouchNode, ...nodes, audioNode.output])
+                    highband.chain(...[soundtouchNode, ...nodes, audioNode.output])
+                } else {
+                    audioNode.input = player
+                    audioNode.input.chain(...[soundtouchNode, ...nodes, audioNode.output])
+                }
             }
         }
     }
@@ -791,6 +845,34 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         saveState()
     }
 
+    const pitchBandStyle = () => {
+        if (!pitchBandSlider.current) return
+        pitchBandSlider.current.style.width = "100%"
+        if (state.splitBands) {
+            pitchBandSlider.current.style.display = "flex"
+        } else {
+            pitchBandSlider.current.style.display = "none"
+        }
+    }
+
+    const pitchBands = (value?: boolean) => {
+        state.splitBands = value !== undefined ? value : !state.splitBands
+        pitchBandCheckbox.current!.src = state.splitBands ? checkboxChecked : checkbox
+        pitchBandStyle()
+        saveState()
+        applyEffects()
+    }
+
+    const pitchBandFreq = async (value?: number | string) => {
+        if (value !== undefined) state.splitBandFreq = Number(value)
+        saveState()
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+            applyEffects()
+            timer = null
+        }, 100)
+    }
+
     const reverse = async (value?: boolean, applyState?: any) => {
         let percent = Tone.Transport.seconds / state.duration
         let val = (1-percent) * state.duration
@@ -911,10 +993,22 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         pitchLFOBar.current.slider.childNodes[2].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
     }
 
+    const updatePitchBandPos = (value: number) => {
+        if (!pitchBandBar.current) return
+        value = ((value - 0) / (1000 - 0)) * 100
+        const width = 88
+        const valuePx = (value / 100) * width
+        pitchBandBar.current.slider.childNodes[0].style = `position: absolute; left: 0px; right: ${width - valuePx}px`
+        pitchBandBar.current.slider.childNodes[1].style = `position: absolute; left: ${valuePx}px; right: 0px`
+        pitchBandBar.current.slider.childNodes[2].ariaValueNow = `${value * 10}`
+        pitchBandBar.current.slider.childNodes[2].style = `position: absolute; touch-action: none; z-index: 1; left: ${valuePx}px`
+    }
+
     const updateBarPos = () => {
         updateSpeedPos(state.speed)
         updatePitchPos(state.pitch)
         if (state.pitchLFO) updatePitchLFOPos(state.pitchLFORate)
+        if (state.splitBands) updatePitchBandPos(state.splitBandFreq)
     }
 
     const reset = async () => {
@@ -929,6 +1023,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         updateSpeedPos(state.speed)
         updatePitchPos(state.pitch)
         updatePitchLFOPos(state.pitchLFORate)
+        updatePitchBandPos(state.splitBandFreq)
         player.reverse = state.reverse
         Tone.Transport.loop = state.loop
         updateABSliderPos([0, 1000])
@@ -1342,6 +1437,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                 await offlineContext.addAudioWorkletModule(soundtouchURL, "soundtouch")
                 const soundtouchNode = offlineContext.createAudioWorkletNode("soundtouch-processor") as any
                 const staticSoundtouchNode = offlineContext.createAudioWorkletNode("soundtouch-processor") as any
+                const staticSoundtouchNode2 = offlineContext.createAudioWorkletNode("soundtouch-processor") as any
                 const pitchCorrect = state.preservesPitch ? 1 / state.speed : 1
                 soundtouchNode.parameters.get("pitch").value = functions.semitonesToScale(state.pitch) * pitchCorrect
                 
@@ -1355,21 +1451,60 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                     lfoNode.parameters.get("bpm").value = state.bpm
                     lfoNode.parameters.get("lfoRate").value = state.pitchLFORate
                     lfoNode.port.postMessage({lfoShape: state.wave})
-                    audioNode.input.connect(staticSoundtouchNode)
-                    effectNode.input.connect(soundtouchNode)
-                    staticSoundtouchNode.connect(lfoNode, 0, 0)
-                    soundtouchNode.connect(lfoNode, 0, 1)
-                    let currentNode = lfoNode
-                    for (let i = 0; i < effectNodes.length; i++) {
-                        const node = effectNodes[i] instanceof Tone.ToneAudioNode ? effectNodes[i].input : effectNodes[i]
-                        currentNode.connect(node)
-                        currentNode = effectNodes[i]
+
+                    if (state.splitBands) {
+                        const lowband = new Tone.Filter({type: "lowpass", frequency: state.splitBandFreq, Q: state.filterResonance, rolloff: getFilterSlope()})
+                        const highband = new Tone.Filter({type: "highpass", frequency: state.splitBandFreq, Q: state.filterResonance, rolloff: getFilterSlope()})
+                        const highbandEffect = new Tone.Filter({type: "highpass", frequency: state.splitBandFreq, Q: state.filterResonance, rolloff: getFilterSlope()})
+                        audioNode.input = player
+                        effectNode.input = player
+                        audioNode.input.connect(lowband)
+                        audioNode.input.connect(highband)
+                        effectNode.input.connect(highbandEffect)
+    
+                        lowband.chain(...[staticSoundtouchNode2, ...effectNodes, audioNode.output, offlineContext.destination])
+                        
+                        highband.connect(staticSoundtouchNode)
+                        highbandEffect.connect(soundtouchNode)
+                        staticSoundtouchNode.connect(lfoNode, 0, 0)
+                        soundtouchNode.connect(lfoNode, 0, 1)
+                        let currentNode = lfoNode
+                        for (let i = 0; i < effectNodes.length; i++) {
+                            const node = effectNodes[i] instanceof Tone.ToneAudioNode ? effectNodes[i].input : effectNodes[i]
+                            currentNode.connect(node)
+                            currentNode = effectNodes[i]
+                        }
+                        currentNode.connect(audioNode.output)
+                        audioNode.connect(offlineContext.destination)
+                        audioNode.input.start()
+                    } else {
+                        audioNode.input.connect(staticSoundtouchNode)
+                        effectNode.input.connect(soundtouchNode)
+                        staticSoundtouchNode.connect(lfoNode, 0, 0)
+                        soundtouchNode.connect(lfoNode, 0, 1)
+                        let currentNode = lfoNode
+                        for (let i = 0; i < effectNodes.length; i++) {
+                            const node = effectNodes[i] instanceof Tone.ToneAudioNode ? effectNodes[i].input : effectNodes[i]
+                            currentNode.connect(node)
+                            currentNode = effectNodes[i]
+                        }
+                        currentNode.connect(audioNode.output)
+                        audioNode.connect(offlineContext.destination)
+                        audioNode.input.start()
                     }
-                    currentNode.connect(audioNode.output)
-                    audioNode.connect(offlineContext.destination)
-                    audioNode.input.start()
                 } else {
-                    audioNode.input.chain(...[soundtouchNode, ...effectNodes, audioNode.output, offlineContext.destination]).start()
+                    if (state.splitBands) {
+                        const lowband = new Tone.Filter({type: "lowpass", frequency: state.splitBandFreq, Q: state.filterResonance, rolloff: getFilterSlope()})
+                        const highband = new Tone.Filter({type: "highpass", frequency: state.splitBandFreq, Q: state.filterResonance, rolloff: getFilterSlope()})
+                        audioNode.input = player
+                        audioNode.input.connect(lowband)
+                        audioNode.input.connect(highband)
+                        lowband.chain(...[staticSoundtouchNode, ...effectNodes, audioNode.output, offlineContext.destination])
+                        highband.chain(...[soundtouchNode, ...effectNodes, audioNode.output, offlineContext.destination])
+                        audioNode.input.start()
+                    } else {
+                        audioNode.input.chain(...[soundtouchNode, ...effectNodes, audioNode.output, offlineContext.destination]).start()
+                    }
                 }
             }
             offlineContext.transport.start(start)
@@ -1784,6 +1919,7 @@ const AudioPlayer: React.FunctionComponent = (props) => {
         setTimeout(() => {
             updatePitchPos(state.pitch)
             updatePitchLFOPos(state.pitchLFORate)
+            updatePitchBandPos(state.splitBandFreq)
         }, 100)
     }
 
@@ -1844,6 +1980,11 @@ const AudioPlayer: React.FunctionComponent = (props) => {
                                     <img className="pitch-checkbox" ref={pitchCheckbox} src={state.pitchLFO ? checkboxChecked : checkbox} onClick={() => pitchLFO()}/>
                                 </div>
                                 <div ref={pitchSlider}><Slider className="pitch-slider" trackClassName="pitch-slider-track" thumbClassName="pitch-slider-handle" ref={pitchLFOBar} onChange={(value) => pitchLFORate(value)} min={0} max={5} step={1} defaultValue={1}/></div>
+                                <div className="pitch-checkbox-container">
+                                    <p className="speed-text">Split Bands?</p>
+                                    <img className="pitch-checkbox" ref={pitchBandCheckbox} src={state.splitBands ? checkboxChecked : checkbox} onClick={() => pitchBands()}/>
+                                </div>
+                                <div ref={pitchBandSlider}><Slider className="pitch-slider" trackClassName="pitch-slider-track" thumbClassName="pitch-slider-handle" ref={pitchBandBar} onChange={(value) => pitchBandFreq(value)} min={0} max={1000} step={1} defaultValue={500}/></div>
                             </div>
                         </div>
                         <img className="player-button" src={pitchIcon} ref={pitchImg} onClick={() => showPitchPopup()} width="30" height="30" onMouseEnter={() => toggleHover("pitch", true)} onMouseLeave={() => toggleHover("pitch")}/>
